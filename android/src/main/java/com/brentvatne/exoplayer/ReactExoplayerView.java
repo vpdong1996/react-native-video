@@ -131,6 +131,12 @@ import com.google.ads.interactivemedia.v3.api.AdEvent;
 import com.google.ads.interactivemedia.v3.api.ImaSdkFactory;
 import com.google.ads.interactivemedia.v3.api.ImaSdkSettings;
 import com.google.common.collect.ImmutableList;
+import com.npaw.NpawPlugin;
+import com.npaw.NpawPluginProvider;
+import com.npaw.analytics.video.VideoAdapter;
+import com.npaw.core.options.AnalyticsOptions;
+import com.npaw.media3.exoplayer.Media3ExoPlayerAdapter;
+import com.npaw.media3.exoplayer.Media3ExoPlayerBalancer;
 
 import java.net.CookieHandler;
 import java.net.CookieManager;
@@ -182,6 +188,7 @@ public class ReactExoplayerView extends FrameLayout implements
 
     private DataSource.Factory mediaDataSourceFactory;
     private ExoPlayer player;
+    Media3ExoPlayerBalancer balancer;
     private DefaultTrackSelector trackSelector;
     private boolean playerNeedsSource;
     private ServiceConnection playbackServiceConnection;
@@ -262,6 +269,19 @@ public class ReactExoplayerView extends FrameLayout implements
     private final String instanceId = String.valueOf(UUID.randomUUID());
 
     private CmcdConfiguration.Factory cmcdConfigurationFactory;
+
+    // (Youbora || React) props
+    private static NpawPlugin youboraPlugin = NpawPluginProvider.getInstance();
+    private static VideoAdapter youboraAdapter = null;
+    private boolean enableCdnBalancer = false;
+    public int errorRetries = 0;
+
+    // Internal variables
+    public static int qualityCounter = 1;
+    public static boolean isTrailer = true;
+    public static String drmUserToken = "";
+    private int manifestType = -1;
+
 
     public void setCmcdConfigurationFactory(CmcdConfiguration.Factory factory) {
         this.cmcdConfigurationFactory = factory;
@@ -787,6 +807,11 @@ public class ReactExoplayerView extends FrameLayout implements
         if(showNotificationControls) {
             setupPlaybackService();
         }
+
+        // Youbora Adapter
+        if (youboraPlugin != null && youboraAdapter == null) {
+            youboraAdapter = youboraPlugin.videoBuilder().setPlayerAdapter(new YouboraCustomAdapter(this.getContext(), player, this)).build();
+        }
     }
 
     private DrmSessionManager initializePlayerDrm() {
@@ -825,6 +850,11 @@ public class ReactExoplayerView extends FrameLayout implements
         ArrayList<MediaSource> mediaSourceList = buildTextSources();
         MediaSource videoSource = buildMediaSource(source.getUri(), source.getExtension(), drmSessionManager, source.getCropStartMs(), source.getCropEndMs());
         MediaSource mediaSourceWithAds = null;
+
+        balancer = new Media3ExoPlayerBalancer(youboraPlugin);
+
+        DefaultMediaSourceFactory balancerMediaSourceFactory = balancer.getMediaSourceFactory();
+
         if (adTagUrl != null && adsLoader != null) {
             DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(mediaDataSourceFactory)
                     .setLocalAdInsertionComponents(unusedAdTagUri -> adsLoader, exoPlayerView);
@@ -836,19 +866,24 @@ public class ReactExoplayerView extends FrameLayout implements
                 adsLoader = null;
             }
         }
+
         MediaSource mediaSource;
+
         if (mediaSourceList.isEmpty()) {
-            if (mediaSourceWithAds != null) {
-                mediaSource = mediaSourceWithAds;
-            } else {
-                mediaSource = videoSource;
+            mediaSource = mediaSourceWithAds != null ? mediaSourceWithAds : videoSource;
+
+            if (enableCdnBalancer) {
+                mediaSource = balancerMediaSourceFactory.createMediaSource(mediaSource.getMediaItem());
             }
         } else {
-            if (mediaSourceWithAds != null) {
-                mediaSourceList.add(0, mediaSourceWithAds);
-            } else {
-                mediaSourceList.add(0, videoSource);
+            MediaSource source = mediaSourceWithAds != null ? mediaSourceWithAds : videoSource;
+
+            if (enableCdnBalancer) {
+                source = balancerMediaSourceFactory.createMediaSource(source.getMediaItem());
             }
+
+            mediaSourceList.add(0, source);
+
             MediaSource[] textSourceArray = mediaSourceList.toArray(
                     new MediaSource[mediaSourceList.size()]
             );
@@ -2391,4 +2426,71 @@ public class ReactExoplayerView extends FrameLayout implements
         controlsConfig = controlsStyles;
         refreshProgressBarVisibility();
     }
+
+    public void setYouboraParams(String accountCode, AnalyticsOptions youboraOptions) {
+        if (youboraOptions == null) {
+            if (youboraPlugin != null) {
+//                youboraPlugin.removeAdapter();
+//                if(errorOverridedListener != null) {
+//                    youboraPlugin.removeOnWillSendErrorListener(errorOverridedListener);
+//                }
+                NpawPluginProvider.destroy();
+                youboraPlugin = null;
+            }
+            return;
+        }
+
+        youboraPlugin = new NpawPlugin.Builder(themedReactContext.getCurrentActivity(), accountCode).setAnalyticsOptions(youboraOptions).build();
+
+//        errorOverridedListener = new Plugin.WillSendRequestListener() {
+//            @Override
+//            public void willSendRequest(String serviceName, Plugin plugin, Map<String, String> params) {
+//                if (!currentlyInRetry){
+//                    youboraPlugin.getAdapter().unregisterListeners();
+//                }
+//            }
+//
+//            @Override
+//            public void willSendRequest(String serviceName, Plugin plugin, ArrayList<JSONObject> params) {
+//                // do nothing for now
+//            }
+//        };
+//
+//        didBehindLiveWindowHappen = false;
+        isTrailer = false;
+        drmUserToken = "";
+        qualityCounter = 1;
+        manifestType = -1;
+//        youboraPlugin.removeOnWillSendErrorListener(errorOverridedListener);
+//        youboraPlugin.addOnWillSendErrorListener(errorOverridedListener);
+//        youboraPlugin.setActivity(themedReactContext.getCurrentActivity());
+    }
+//
+//    public void setExoPlayerCallback(ExoPlayerCallback callback) {
+//        playerCallback = callback;
+//        eventEmitter.playerCallback = callback;
+//    }
+    public long getCurrentPositionMs() {
+        if (player != null) {
+            return player.getCurrentPosition();
+        }
+        return 0;
+    }
+
+    public long getDuration() {
+        if (player != null) {
+            return player.getDuration();
+        }
+        return 0;
+    }
+
+    public void setEnableCdnBalancerModifier(boolean enableCdnBalancer) {
+        this.enableCdnBalancer = enableCdnBalancer;
+    }
+//
+//    public void setAdsSrc(String src) {
+//        this.srcUri = Uri.parse(src);
+//        reloadSource();
+//    }
+//
 }
