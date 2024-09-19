@@ -133,7 +133,9 @@ import com.google.ads.interactivemedia.v3.api.ImaSdkSettings;
 import com.google.common.collect.ImmutableList;
 import com.npaw.NpawPlugin;
 import com.npaw.NpawPluginProvider;
+import com.npaw.analytics.video.WillSendRequestListener;
 import com.npaw.analytics.video.VideoAdapter;
+import com.npaw.core.data.Services;
 import com.npaw.core.options.AnalyticsOptions;
 import com.npaw.media3.exoplayer.Media3ExoPlayerAdapter;
 import com.npaw.media3.exoplayer.Media3ExoPlayerBalancer;
@@ -275,6 +277,8 @@ public class ReactExoplayerView extends FrameLayout implements
     private static VideoAdapter youboraAdapter = null;
     private boolean enableCdnBalancer = false;
     public int errorRetries = 0;
+    WillSendRequestListener errorOverridedListener;
+
 
     // Internal variables
     public static int qualityCounter = 1;
@@ -811,6 +815,8 @@ public class ReactExoplayerView extends FrameLayout implements
         // Youbora Adapter
         if (youboraPlugin != null && youboraAdapter == null) {
             youboraAdapter = youboraPlugin.videoBuilder().setPlayerAdapter(new YouboraCustomAdapter(this.getContext(), player, this)).build();
+            youboraAdapter.addOnWillSendRequestListener(errorOverridedListener);
+            youboraAdapter.removeOnWillSendRequestListener(errorOverridedListener);
         }
     }
 
@@ -1199,6 +1205,9 @@ public class ReactExoplayerView extends FrameLayout implements
     }
 
     private void releasePlayer() {
+        if (youboraPlugin != null) youboraPlugin.destroy();
+        if (youboraAdapter != null) youboraAdapter.destroy();
+
         if (player != null) {
             if (adsLoader != null) {
                 adsLoader.setPlayer(null);
@@ -2430,39 +2439,26 @@ public class ReactExoplayerView extends FrameLayout implements
     public void setYouboraParams(String accountCode, AnalyticsOptions youboraOptions) {
         if (youboraOptions == null) {
             if (youboraPlugin != null) {
-//                youboraPlugin.removeAdapter();
-//                if(errorOverridedListener != null) {
-//                    youboraPlugin.removeOnWillSendErrorListener(errorOverridedListener);
-//                }
-                NpawPluginProvider.destroy();
-                youboraPlugin = null;
+                youboraPlugin.destroy();
             }
             return;
         }
 
         youboraPlugin = new NpawPlugin.Builder(themedReactContext.getCurrentActivity(), accountCode).setAnalyticsOptions(youboraOptions).build();
 
-//        errorOverridedListener = new Plugin.WillSendRequestListener() {
-//            @Override
-//            public void willSendRequest(String serviceName, Plugin plugin, Map<String, String> params) {
-//                if (!currentlyInRetry){
-//                    youboraPlugin.getAdapter().unregisterListeners();
-//                }
-//            }
-//
-//            @Override
-//            public void willSendRequest(String serviceName, Plugin plugin, ArrayList<JSONObject> params) {
-//                // do nothing for now
-//            }
-//        };
+        errorOverridedListener = (serviceName, videoAdapter, map) -> {
+            switch (serviceName) {
+                case Services.ERROR:
+                    if (!youboraAdapter.isDestroying()) youboraAdapter.destroy();
+                break;
+            }
+        };
 //
 //        didBehindLiveWindowHappen = false;
         isTrailer = false;
         drmUserToken = "";
         qualityCounter = 1;
         manifestType = -1;
-//        youboraPlugin.removeOnWillSendErrorListener(errorOverridedListener);
-//        youboraPlugin.addOnWillSendErrorListener(errorOverridedListener);
 //        youboraPlugin.setActivity(themedReactContext.getCurrentActivity());
     }
 //
