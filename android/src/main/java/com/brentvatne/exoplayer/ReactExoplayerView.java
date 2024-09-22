@@ -131,13 +131,11 @@ import com.google.ads.interactivemedia.v3.api.AdEvent;
 import com.google.ads.interactivemedia.v3.api.ImaSdkFactory;
 import com.google.ads.interactivemedia.v3.api.ImaSdkSettings;
 import com.google.common.collect.ImmutableList;
-import com.npaw.NpawPlugin;
 import com.npaw.NpawPluginProvider;
 import com.npaw.analytics.video.WillSendRequestListener;
 import com.npaw.analytics.video.VideoAdapter;
 import com.npaw.core.data.Services;
 import com.npaw.core.options.AnalyticsOptions;
-import com.npaw.media3.exoplayer.Media3ExoPlayerAdapter;
 import com.npaw.media3.exoplayer.Media3ExoPlayerBalancer;
 
 import java.net.CookieHandler;
@@ -225,9 +223,9 @@ public class ReactExoplayerView extends FrameLayout implements
     private ControlsConfig controlsConfig = new ControlsConfig();
 
     /*
-    * When user is seeking first called is on onPositionDiscontinuity -> DISCONTINUITY_REASON_SEEK
-    * Then we set if to false when playback is back in onIsPlayingChanged -> true
-    */
+     * When user is seeking first called is on onPositionDiscontinuity -> DISCONTINUITY_REASON_SEEK
+     * Then we set if to false when playback is back in onIsPlayingChanged -> true
+     */
     private boolean isSeeking = false;
     private long seekPosition = -1;
 
@@ -273,7 +271,6 @@ public class ReactExoplayerView extends FrameLayout implements
     private CmcdConfiguration.Factory cmcdConfigurationFactory;
 
     // (Youbora || React) props
-    private static NpawPlugin youboraPlugin = NpawPluginProvider.getInstance();
     private static VideoAdapter youboraAdapter = null;
     private boolean enableCdnBalancer = false;
     public int errorRetries = 0;
@@ -776,7 +773,7 @@ public class ReactExoplayerView extends FrameLayout implements
                 .setAdEventListener(this)
                 .setAdErrorListener(this)
                 .build();
-        DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(mediaDataSourceFactory);
+        DefaultMediaSourceFactory mediaSourceFactory = new Media3ExoPlayerBalancer(NpawPluginProvider.getInstance()).getMediaSourceFactory();
         if (useCache) {
             mediaSourceFactory.setDataSourceFactory(RNVSimpleCache.INSTANCE.getCacheFactory(buildHttpDataSourceFactory(true)));
         }
@@ -813,8 +810,8 @@ public class ReactExoplayerView extends FrameLayout implements
         }
 
         // Youbora Adapter
-        if (youboraPlugin != null && youboraAdapter == null) {
-            youboraAdapter = youboraPlugin.videoBuilder().setPlayerAdapter(new YouboraCustomAdapter(this.getContext(), player, this)).build();
+        if (NpawPluginProvider.getInstance() != null && youboraAdapter == null) {
+            youboraAdapter = NpawPluginProvider.getInstance().videoBuilder().setPlayerAdapter(new YouboraCustomAdapter(this.getContext(), player, this)).build();
             youboraAdapter.addOnWillSendRequestListener(errorOverridedListener);
             youboraAdapter.removeOnWillSendRequestListener(errorOverridedListener);
         }
@@ -835,7 +832,7 @@ public class ReactExoplayerView extends FrameLayout implements
                             : (e.reason == UnsupportedDrmException.REASON_UNSUPPORTED_SCHEME
                             ? R.string.error_drm_unsupported_scheme : R.string.error_drm_unknown);
                     eventEmitter.onVideoError.invoke(getResources().getString(errorStringId), e, "3003");
-                        }
+                }
             }
         }
         return drmSessionManager;
@@ -857,7 +854,7 @@ public class ReactExoplayerView extends FrameLayout implements
         MediaSource videoSource = buildMediaSource(source.getUri(), source.getExtension(), drmSessionManager, source.getCropStartMs(), source.getCropEndMs());
         MediaSource mediaSourceWithAds = null;
 
-        balancer = new Media3ExoPlayerBalancer(youboraPlugin);
+        balancer = new Media3ExoPlayerBalancer(NpawPluginProvider.getInstance());
 
         DefaultMediaSourceFactory balancerMediaSourceFactory = balancer.getMediaSourceFactory();
 
@@ -1205,8 +1202,11 @@ public class ReactExoplayerView extends FrameLayout implements
     }
 
     private void releasePlayer() {
-        if (youboraPlugin != null) youboraPlugin.destroy();
-        if (youboraAdapter != null) youboraAdapter.destroy();
+        if (NpawPluginProvider.getInstance() != null) NpawPluginProvider.destroy();
+        if (youboraAdapter != null) {
+            youboraAdapter.destroy();
+            youboraAdapter = null;
+        };
 
         if (player != null) {
             if (adsLoader != null) {
@@ -1752,7 +1752,6 @@ public class ReactExoplayerView extends FrameLayout implements
         }
 
         eventEmitter.onVideoPlaybackStateChanged.invoke(isPlaying, isSeeking);
-        
         if (isPlaying) {
             isSeeking = false;
         }
@@ -2438,19 +2437,18 @@ public class ReactExoplayerView extends FrameLayout implements
 
     public void setYouboraParams(String accountCode, AnalyticsOptions youboraOptions) {
         if (youboraOptions == null) {
-            if (youboraPlugin != null) {
-                youboraPlugin.destroy();
+            if (NpawPluginProvider.getInstance() != null) {
+                NpawPluginProvider.destroy();
             }
             return;
         }
-
-        youboraPlugin = new NpawPlugin.Builder(themedReactContext.getCurrentActivity(), accountCode).setAnalyticsOptions(youboraOptions).build();
+        NpawPluginProvider.initialize(accountCode, themedReactContext.getCurrentActivity(), youboraOptions);
 
         errorOverridedListener = (serviceName, videoAdapter, map) -> {
             switch (serviceName) {
                 case Services.ERROR:
                     if (!youboraAdapter.isDestroying()) youboraAdapter.destroy();
-                break;
+                    break;
             }
         };
 //
@@ -2459,9 +2457,8 @@ public class ReactExoplayerView extends FrameLayout implements
         drmUserToken = "";
         qualityCounter = 1;
         manifestType = -1;
-//        youboraPlugin.setActivity(themedReactContext.getCurrentActivity());
     }
-//
+    //
 //    public void setExoPlayerCallback(ExoPlayerCallback callback) {
 //        playerCallback = callback;
 //        eventEmitter.playerCallback = callback;
