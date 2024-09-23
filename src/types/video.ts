@@ -261,6 +261,41 @@ export interface ReactVideoRenderLoaderProps {
   resizeMode?: EnumValues<VideoResizeMode>;
 }
 
+export type YouboraParams = Readonly<{
+  accountCode: string;
+  isLive: boolean;
+  contentType: string;
+  tvShow?: string;
+  season?: string;
+  contentDuration: number;
+  contentPackage: string;
+  username: string;
+  userType: string;
+  appName: string;
+  releaseVersion: string;
+  contentTransactionCode: string;
+  title?: string;
+  program: string;
+  contentId: string;
+  contentResource?: string;
+  contentPlaybackType: string;
+  contentDrm?: any;
+  contentGenre?: string;
+  contentLanguage: string;
+  contentChannels: string;
+  contentStreamingProtocol?: string;
+  enabled: boolean;
+  contentCustomDimension1?: string;
+  contentCustomDimension2?: string;
+  contentCustomDimension3?: string;
+  contentCustomDimension4?: string;
+  contentCustomDimension5?: string;
+  contentCustomDimension6?: string;
+  contentCustomDimension7?: string;
+  contentCustomDimension8?: string;
+  contentCustomDimension9?: any;
+}>;
+
 export interface ReactVideoProps extends ReactVideoEvents, ViewProps {
   source?: ReactVideoSource;
   /** @deprecated Use source.drm */
@@ -325,4 +360,5 @@ export interface ReactVideoProps extends ReactVideoEvents, ViewProps {
   debug?: DebugConfig;
   allowsExternalPlayback?: boolean; // iOS
   controlsStyles?: ControlsStyles; // Android
+  youboraParams: YouboraParams;
 }

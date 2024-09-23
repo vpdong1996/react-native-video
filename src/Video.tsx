@@ -89,6 +89,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       useSecureView,
       viewType,
       shutterColor,
+      youboraParams,
       onLoadStart,
       onLoad,
       onError,
@@ -743,6 +744,24 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       [showPoster],
     );
 
+    const _youboraParams = useMemo(() => {
+      if (!youboraParams) {
+        return;
+      }
+      const typeOfValueProp = typeof youboraParams.accountCode;
+      if (
+        typeOfValueProp !== 'string'
+      ) {
+        console.warn(
+          'AccountCode is required ',
+          typeOfValueProp,
+        );
+        return;
+      }
+      return youboraParams;
+    }, [youboraParams]);
+
+
     return (
       <View style={style}>
         <NativeVideoComponent
@@ -822,6 +841,8 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
             onControlsVisibilityChange ? _onControlsVisibilityChange : undefined
           }
           viewType={_viewType}
+          // Customize Props
+          youboraParams={_youboraParams}
         />
         {_renderPoster()}
       </View>

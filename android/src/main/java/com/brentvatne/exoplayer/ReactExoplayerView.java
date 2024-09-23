@@ -17,6 +17,7 @@ import android.content.ServiceConnection;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -131,6 +132,7 @@ import com.google.ads.interactivemedia.v3.api.AdEvent;
 import com.google.ads.interactivemedia.v3.api.ImaSdkFactory;
 import com.google.ads.interactivemedia.v3.api.ImaSdkSettings;
 import com.google.common.collect.ImmutableList;
+import com.npaw.NpawPlugin;
 import com.npaw.NpawPluginProvider;
 import com.npaw.analytics.video.WillSendRequestListener;
 import com.npaw.analytics.video.VideoAdapter;
@@ -1202,11 +1204,7 @@ public class ReactExoplayerView extends FrameLayout implements
     }
 
     private void releasePlayer() {
-        if (NpawPluginProvider.getInstance() != null) NpawPluginProvider.destroy();
-        if (youboraAdapter != null) {
-            youboraAdapter.destroy();
-            youboraAdapter = null;
-        };
+        releaseYoubora();
 
         if (player != null) {
             if (adsLoader != null) {
@@ -2437,28 +2435,44 @@ public class ReactExoplayerView extends FrameLayout implements
 
     public void setYouboraParams(String accountCode, AnalyticsOptions youboraOptions) {
         if (youboraOptions == null) {
-            if (NpawPluginProvider.getInstance() != null) {
-                NpawPluginProvider.destroy();
-            }
+            releaseYoubora();
             return;
         }
-        NpawPluginProvider.initialize(accountCode, themedReactContext.getCurrentActivity(), youboraOptions);
+
+        // Import options from bundle: https://documentation.npaw.com/integration-docs/docs/options-analytics-android#option-2-import-bundle-directly-to-analyticsoptions
+        if (NpawPluginProvider.getInstance() instanceof NpawPlugin) {
+            Bundle analyticsOptionsBundle = youboraOptions.toBundle();
+            NpawPluginProvider.getInstance().getAnalyticsOptions().fromBundle(analyticsOptionsBundle);
+        } else {
+            NpawPluginProvider.initialize(accountCode, themedReactContext.getCurrentActivity(), youboraOptions);
+        }
+
 
         errorOverridedListener = (serviceName, videoAdapter, map) -> {
             switch (serviceName) {
                 case Services.ERROR:
-                    if (!youboraAdapter.isDestroying()) youboraAdapter.destroy();
+                    if (!youboraAdapter.isDestroying()) {
+                        youboraAdapter.destroy();
+                        youboraAdapter = null;
+                    };
                     break;
             }
         };
-//
 //        didBehindLiveWindowHappen = false;
         isTrailer = false;
         drmUserToken = "";
         qualityCounter = 1;
         manifestType = -1;
     }
-    //
+
+    private void releaseYoubora() {
+        if (NpawPluginProvider.getInstance() != null) NpawPluginProvider.destroy();
+        if (youboraAdapter != null) {
+            youboraAdapter.destroy();
+            youboraAdapter = null;
+        };
+    }
+
 //    public void setExoPlayerCallback(ExoPlayerCallback callback) {
 //        playerCallback = callback;
 //        eventEmitter.playerCallback = callback;

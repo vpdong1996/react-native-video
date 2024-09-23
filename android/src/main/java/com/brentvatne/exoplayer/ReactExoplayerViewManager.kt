@@ -70,6 +70,7 @@ class ReactExoplayerViewManager(private val config: ReactExoplayerConfig) : View
         private const val PROP_CONTROLS_STYLES = "controlsStyles"
 
         // Youbora Props
+        private const val PROP_ENABLE_CDN_BALANCER = "enableCdnBalancer";
         private const val PROP_YOUBORA_FIRE_EVENT: String = "youboraFireEvent"
         private const val PROP_YOUBORA_PARAMS: String = "youboraParams"
         private const val PROP_YOUBORA_ACCOUNT_CODE: String = "accountCode"
@@ -346,6 +347,11 @@ class ReactExoplayerViewManager(private val config: ReactExoplayerConfig) : View
     fun setControlsStyles(videoView: ReactExoplayerView, controlsStyles: ReadableMap?) {
         val controlsConfig = ControlsConfig.parse(controlsStyles)
         videoView.setControlsStyles(controlsConfig)
+    }
+
+    @ReactProp(name = PROP_ENABLE_CDN_BALANCER, defaultBoolean = false)
+    fun setEnableCdnBalancer(videoView: ReactExoplayerView, enableCdnBalancer: Boolean) {
+        videoView.setEnableCdnBalancerModifier(enableCdnBalancer)
     }
 
     @ReactProp(name = PROP_YOUBORA_PARAMS)
