@@ -308,7 +308,7 @@ export type OnControlsVisibilityChange = Readonly<{
 }>;
 
 
-export type YouboraParams = Readonly<{
+type YouboraParams = Readonly<{
   accountCode: string;
   isLive: boolean;
   contentType: string;
