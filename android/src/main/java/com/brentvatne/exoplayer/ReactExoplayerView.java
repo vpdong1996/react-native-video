@@ -775,7 +775,7 @@ public class ReactExoplayerView extends FrameLayout implements
                 .setAdEventListener(this)
                 .setAdErrorListener(this)
                 .build();
-        DefaultMediaSourceFactory mediaSourceFactory = new Media3ExoPlayerBalancer(NpawPluginProvider.getInstance()).getMediaSourceFactory();
+        DefaultMediaSourceFactory mediaSourceFactory = this.enableCdnBalancer ? new Media3ExoPlayerBalancer(NpawPluginProvider.getInstance()).getMediaSourceFactory() : new DefaultMediaSourceFactory(mediaDataSourceFactory);
         if (useCache) {
             mediaSourceFactory.setDataSourceFactory(RNVSimpleCache.INSTANCE.getCacheFactory(buildHttpDataSourceFactory(true)));
         }
@@ -855,10 +855,13 @@ public class ReactExoplayerView extends FrameLayout implements
         ArrayList<MediaSource> mediaSourceList = buildTextSources();
         MediaSource videoSource = buildMediaSource(source.getUri(), source.getExtension(), drmSessionManager, source.getCropStartMs(), source.getCropEndMs());
         MediaSource mediaSourceWithAds = null;
+        DefaultMediaSourceFactory balancerMediaSourceFactory = null;
 
-        balancer = new Media3ExoPlayerBalancer(NpawPluginProvider.getInstance());
-
-        DefaultMediaSourceFactory balancerMediaSourceFactory = balancer.getMediaSourceFactory();
+        if (enableCdnBalancer) {
+            balancer = new Media3ExoPlayerBalancer(NpawPluginProvider.getInstance());
+            balancerMediaSourceFactory = balancer.getMediaSourceFactory();
+            balancerMediaSourceFactory.setDrmSessionManagerProvider(drmSessionManager != null ? ((_mediaItem) -> drmSessionManager) : new DefaultDrmSessionManagerProvider());
+        }
 
         if (adTagUrl != null && adsLoader != null) {
             DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(mediaDataSourceFactory)
@@ -1850,7 +1853,7 @@ public class ReactExoplayerView extends FrameLayout implements
             boolean isSourceEqual = source.isEquals(this.source);
             hasDrmFailed = false;
             this.source = source;
-            this.mediaDataSourceFactory =
+            this.mediaDataSourceFactory = this.enableCdnBalancer ? new Media3ExoPlayerBalancer(NpawPluginProvider.getInstance()).getDataSourceFactory(source.getHeaders()) :
                     DataSourceUtil.getDefaultDataSourceFactory(this.themedReactContext, bandwidthMeter,
                             source.getHeaders());
 
@@ -2440,7 +2443,7 @@ public class ReactExoplayerView extends FrameLayout implements
         }
 
         // Import options from bundle: https://documentation.npaw.com/integration-docs/docs/options-analytics-android#option-2-import-bundle-directly-to-analyticsoptions
-        if (NpawPluginProvider.getInstance() instanceof NpawPlugin) {
+        if (NpawPluginProvider.getInstance() != null) {
             Bundle analyticsOptionsBundle = youboraOptions.toBundle();
             NpawPluginProvider.getInstance().getAnalyticsOptions().fromBundle(analyticsOptionsBundle);
         } else {
