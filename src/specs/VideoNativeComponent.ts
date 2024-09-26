@@ -344,7 +344,7 @@ type YouboraParams = Readonly<{
 }>;
 
 type OnSSAIAdEventData = Readonly<{
-  data?: object;
+  data?: {};
   event: WithDefault<string, 'AdBreakEnded'>;
 }>; 
 
