@@ -851,7 +851,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
           viewType={_viewType}
           // Customize Props
           youboraParams={_youboraParams}
-          onSSAIAdEvent={_onSSAIAdEvent}
+          onSSAIAdEvent={onSSAIAdEvent ? (_onSSAIAdEvent as (e: NativeSyntheticEvent<object>) => void) :undefined}
         />
         {_renderPoster()}
       </View>
