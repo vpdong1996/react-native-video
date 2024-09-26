@@ -114,6 +114,7 @@ import com.brentvatne.common.api.SubtitleStyle;
 import com.brentvatne.common.api.TimedMetadata;
 import com.brentvatne.common.api.Track;
 import com.brentvatne.common.api.VideoTrack;
+import com.brentvatne.common.interfaces.AdObject;
 import com.brentvatne.common.react.VideoEventEmitter;
 import com.brentvatne.common.toolbox.DebugLog;
 import com.brentvatne.common.toolbox.ReactBridgeUtils;
@@ -122,9 +123,14 @@ import com.brentvatne.react.R;
 import com.brentvatne.react.ReactNativeVideoManager;
 import com.brentvatne.receiver.AudioBecomingNoisyReceiver;
 import com.brentvatne.receiver.BecomingNoisyListener;
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.UiThreadUtil;
+import com.facebook.react.bridge.WritableArray;
+import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.google.ads.interactivemedia.v3.api.AdError;
 import com.google.ads.interactivemedia.v3.api.AdErrorEvent;
@@ -251,6 +257,7 @@ public class ReactExoplayerView extends FrameLayout implements
     private boolean controls;
     private Uri adTagUrl;
     private String adLanguage;
+    private ArrayList<AdObject> adsBreakPoints = new ArrayList<AdObject>();
 
     private boolean showNotificationControls = false;
     // \ End props
@@ -2497,6 +2504,45 @@ public class ReactExoplayerView extends FrameLayout implements
     public void setEnableCdnBalancerModifier(boolean enableCdnBalancer) {
         this.enableCdnBalancer = enableCdnBalancer;
     }
+
+    public void setAdsBreakPoints(ReadableArray adsBreakPoints) {
+        if (adsBreakPoints != null && player != null) {
+            this.adsBreakPoints.clear();
+            long duration = player.getDuration();
+            if (duration > 0) {
+                WritableArray writableArrayOfCuePoints = Arguments.createArray();
+                for (int i = 0; i < adsBreakPoints.size(); i++) {
+                    final ReadableMap arg_object = adsBreakPoints.getMap(i);
+                    final double adStartTime = (long) arg_object.getDouble("start");
+                    long adDuration = (long) arg_object.getDouble("duration");
+                    long startTime = (long) Math.floor(arg_object.getDouble("start"));
+                    long endTime = (long) Math.floor(arg_object.getDouble("end"));
+                    final boolean played = arg_object.getBoolean("played");
+                    boolean started = arg_object.getBoolean("started");
+                    ReadableArray ads = arg_object.getArray("ads");
+                    ArrayList<AdObject> slotAds = new ArrayList<AdObject>();
+                    for (int j = 0; j < ads.size(); j++) {
+                        final ReadableMap adObject = ads.getMap(j);
+                        long subAdStartTime = (long) (adObject.getDouble("startTimeInSeconds"));
+                        long subAdDuration = (long) (adObject.getDouble("durationInSeconds"));
+                        long subAdEndingTime = (subAdStartTime + subAdDuration);
+                        slotAds.add(new AdObject(subAdStartTime, subAdEndingTime, subAdDuration));
+                    }
+
+                    writableArrayOfCuePoints.pushDouble(adStartTime);
+                    AdObject adObject = new AdObject(startTime, endTime, adDuration, played, started, slotAds);
+                    this.adsBreakPoints.add(adObject);
+
+                }
+
+                WritableMap eventData = Arguments.createMap();
+                eventData.putArray("cuePoints", writableArrayOfCuePoints);
+                eventEmitter.onSSAIAdEvent.invoke("CuePointsChange", eventData);
+            }
+        }
+
+    }
+
 //
 //    public void setAdsSrc(String src) {
 //        this.srcUri = Uri.parse(src);

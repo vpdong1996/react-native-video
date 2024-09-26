@@ -53,6 +53,7 @@ import type {
   OnReceiveAdEventData,
   ReactVideoProps,
   CmcdData,
+  OnSSAIAdEventData,
 } from './types';
 
 export interface VideoRef {
@@ -120,6 +121,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       onTextTrackDataChanged,
       onVideoTracks,
       onAspectRatio,
+      onSSAIAdEvent,
       ...rest
     },
     ref,
@@ -558,6 +560,12 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       [onControlsVisibilityChange],
     );
 
+    const _onSSAIAdEvent = useCallback(
+      (e: NativeSyntheticEvent<OnSSAIAdEventData>) => {
+        onSSAIAdEvent?.(e.nativeEvent);
+      }, [onSSAIAdEvent]
+    )
+
     const selectedDrm = source?.drm || drm;
     const usingExternalGetLicense = selectedDrm?.getLicense instanceof Function;
 
@@ -843,6 +851,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
           viewType={_viewType}
           // Customize Props
           youboraParams={_youboraParams}
+          onSSAIAdEvent={_onSSAIAdEvent}
         />
         {_renderPoster()}
       </View>

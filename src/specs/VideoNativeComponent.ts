@@ -343,6 +343,11 @@ type YouboraParams = Readonly<{
   contentCustomDimension9?: any;
 }>;
 
+type OnSSAIAdEventData = Readonly<{
+  data?: object;
+  event: WithDefault<'CuePointsChange' | 'AdBreakStarted' | 'AdBreakEnded' | 'AdProgress'>;
+}>; 
+
 export interface VideoNativeProps extends ViewProps {
   src?: VideoSrc;
   adTagUrl?: string;
@@ -423,6 +428,7 @@ export interface VideoNativeProps extends ViewProps {
   onTextTracks?: DirectEventHandler<OnTextTracksData>; // android
   onTextTrackDataChanged?: DirectEventHandler<OnTextTrackDataChangedData>; // iOS
   onVideoTracks?: DirectEventHandler<OnVideoTracksData>; // android
+  onSSAIAdEvent?: DirectEventHandler<OnSSAIAdEventData>
 }
 
 type NativeVideoComponentType = HostComponent<VideoNativeProps>;

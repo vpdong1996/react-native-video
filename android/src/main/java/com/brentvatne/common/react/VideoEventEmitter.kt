@@ -42,7 +42,8 @@ enum class EventTypes(val eventName: String) {
 
     EVENT_TEXT_TRACK_DATA_CHANGED("onTextTrackDataChanged"),
     EVENT_VIDEO_TRACKS("onVideoTracks"),
-    EVENT_ON_RECEIVE_AD_EVENT("onReceiveAdEvent");
+    EVENT_ON_RECEIVE_AD_EVENT("onReceiveAdEvent"),
+    EVENT_ON_SSAI_AD_EVENT("onSSAIAdEvent");
 
     companion object {
         fun toMap() =
@@ -90,6 +91,7 @@ class VideoEventEmitter {
     lateinit var onVideoTracks: (videoTracks: ArrayList<VideoTrack>?) -> Unit
     lateinit var onTextTrackDataChanged: (textTrackData: String) -> Unit
     lateinit var onReceiveAdEvent: (adEvent: String, adData: Map<String?, String?>?) -> Unit
+    lateinit var onSSAIAdEvent: (adEvent: String, adData: WritableMap?) -> Unit
 
     fun addEventEmitters(reactContext: ThemedReactContext, view: ReactExoplayerView) {
         val dispatcher = UIManagerHelper.getEventDispatcherForReactTag(reactContext, view.id)
@@ -276,6 +278,12 @@ class VideoEventEmitter {
                             }
                         }
                     )
+                }
+            }
+            onSSAIAdEvent = {adEvent, adData ->
+                event.dispatch(EventTypes.EVENT_ON_SSAI_AD_EVENT) {
+                    putString("type", adEvent)
+                    putMap("data", adData)
                 }
             }
         }

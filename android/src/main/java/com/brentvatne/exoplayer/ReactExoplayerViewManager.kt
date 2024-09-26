@@ -1,6 +1,5 @@
 package com.brentvatne.exoplayer
 
-import android.R.attr
 import android.graphics.Color
 import android.net.Uri
 import android.text.TextUtils
@@ -16,6 +15,7 @@ import com.brentvatne.common.react.EventTypes
 import com.brentvatne.common.toolbox.DebugLog
 import com.brentvatne.common.toolbox.ReactBridgeUtils
 import com.brentvatne.react.ReactNativeVideoManager
+import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.ViewGroupManager
@@ -108,6 +108,7 @@ class ReactExoplayerViewManager(private val config: ReactExoplayerConfig) : View
         private const val PROP_YOUBORA_APP_NAME: String = "appName"
         private const val PROP_YOUBORA_RELEASE_VERSION: String = "releaseVersion"
         private const val PROP_LANGUAGE: String = "language"
+        private const val PROP_AD_BREAK_POINT: String = "adsBreakPoints";
     }
 
     override fun getName(): String = REACT_CLASS
@@ -449,5 +450,15 @@ class ReactExoplayerViewManager(private val config: ReactExoplayerConfig) : View
         youboraOptions.deviceCode = "AndroidTV"
 
         videoView.setYouboraParams(accountCode, youboraOptions)
+    }
+
+    @ReactProp(name = PROP_AD_BREAK_POINT)
+    fun setAdsBreakPoints(
+        videoView: ReactExoplayerView,
+        adsBreakPoints: ReadableArray?
+    ) {
+        if (adsBreakPoints == null) return;
+
+        videoView.setAdsBreakPoints(adsBreakPoints)
     }
 }
