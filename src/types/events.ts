@@ -234,7 +234,7 @@ export type OnReceiveAdEventData = Readonly<{
 
 export type OnSSAIAdEventData = Readonly<{
   data?: object;
-  event: WithDefault<'CuePointsChange' | 'AdBreakStarted' | 'AdBreakEnded' | 'AdProgress'>;
+  event: WithDefault<'CuePointsChange' | 'AdBreakStarted' | 'AdBreakEnded' | 'AdProgress', 'AdBreakEnded'>;
 }>;
 
 export interface ReactVideoEvents {
