@@ -345,7 +345,7 @@ type YouboraParams = Readonly<{
 
 type OnSSAIAdEventData = Readonly<{
   data?: object;
-  event: WithDefault<'CuePointsChange' | 'AdBreakStarted' | 'AdBreakEnded' | 'AdProgress'>;
+  event: WithDefault<string, 'AdBreakEnded'>;
 }>; 
 
 export interface VideoNativeProps extends ViewProps {
