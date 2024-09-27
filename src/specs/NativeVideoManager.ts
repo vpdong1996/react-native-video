@@ -27,6 +27,7 @@ export interface VideoManagerType {
   setVolumeCmd: (reactTag: Int32, volume: number) => Promise<void>;
   save: (reactTag: Int32, option: UnsafeObject) => Promise<VideoSaveData>;
   getCurrentPosition: (reactTag: Int32) => Promise<Int32>;
+  fireYouboraEvent: (reactTag: Int32, eventData: UnsafeObject) => Promise<void>;
 }
 
 export default NativeModules.VideoManager as VideoManagerType;

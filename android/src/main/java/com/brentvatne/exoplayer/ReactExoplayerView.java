@@ -118,6 +118,7 @@ import com.brentvatne.common.interfaces.AdObject;
 import com.brentvatne.common.react.VideoEventEmitter;
 import com.brentvatne.common.toolbox.DebugLog;
 import com.brentvatne.common.toolbox.ReactBridgeUtils;
+import com.brentvatne.common.utils.ContentUtils;
 import com.brentvatne.react.BuildConfig;
 import com.brentvatne.react.R;
 import com.brentvatne.react.ReactNativeVideoManager;
@@ -128,6 +129,7 @@ import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
@@ -150,6 +152,8 @@ import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -258,8 +262,16 @@ public class ReactExoplayerView extends FrameLayout implements
     private Uri adTagUrl;
     private String adLanguage;
     private ArrayList<AdObject> adsBreakPoints = new ArrayList<AdObject>();
-
+    private Date joinDate;
     private boolean showNotificationControls = false;
+    private boolean isLive = false;
+    private boolean isDrm = false;
+    private long seekTime = C.TIME_UNSET;
+    private long dashStartTime = 0;
+    private boolean updateSubtitle = false;
+    private Long firstWindowPosition;
+    private int currentAdPlayer = -1;
+    private long snapBackTimeMs;
     // \ End props
 
     // React
@@ -291,6 +303,7 @@ public class ReactExoplayerView extends FrameLayout implements
     public static boolean isTrailer = true;
     public static String drmUserToken = "";
     private int manifestType = -1;
+    private ContentUtils contentUtils;
 
 
     public void setCmcdConfigurationFactory(CmcdConfiguration.Factory factory) {
@@ -305,8 +318,53 @@ public class ReactExoplayerView extends FrameLayout implements
             long bufferedDuration = player.getBufferedPercentage() * player.getDuration() / 100;
             long duration = player.getDuration();
             long pos = player.getCurrentPosition();
+            long temPos = pos;
+
             if (pos > duration) {
                 pos = duration;
+                temPos = pos;
+            }
+
+            if (joinDate == null) {
+                joinDate = new Date();
+            }
+
+            if (
+                    !isLive &&
+                            isDrm &&
+                            pos >= 2000 &&
+                            !updateSubtitle &&
+                            adsBreakPoints.isEmpty()
+            ) {
+                updateSubtitle = true;
+                eventEmitter.onUpdateSubtitle.invoke(getAudioTrackInfo(), getTextTrackInfo());
+            }
+
+            if (
+                    !adsBreakPoints.isEmpty() &&
+                            player.getCurrentManifest() != null &&
+                            isDrm &&
+                            isLive &&
+                            player != null
+            ) {
+                temPos = dashStartTime + (new Date().getTime() - joinDate.getTime()) / 1000;
+            } else if (
+                    !adsBreakPoints.isEmpty() &&
+                            player.getCurrentManifest() != null &&
+                            !isDrm &&
+                            isLive &&
+                            player != null
+            ) {
+                temPos = (new Date().getTime() - joinDate.getTime()) / 1000 + firstWindowPosition;
+            } else {
+                temPos = player.getCurrentPosition() / 1000;
+            }
+
+            handleSSAI(temPos);
+
+            if (!adsBreakPoints.isEmpty() && !isLive) {
+                pos = contentUtils.getContentTime(pos);
+                duration = contentUtils.getContentTime(duration);
             }
 
             if (lastPos != pos
@@ -330,6 +388,76 @@ public class ReactExoplayerView extends FrameLayout implements
             }
         }
     };
+
+    public void handleSSAI(long pos) {
+        if (!adsBreakPoints.isEmpty()) {
+            for (int i = 0; i < adsBreakPoints.size(); i++) {
+                AdObject adObject = adsBreakPoints.get(i);
+
+                // to skip an ad if was played
+
+                if (adObject.adStart - 1 <= pos && pos < adObject.adEnd && adObject.played && !isLive) {
+                    player.seekTo(adObject.adEnd * 1000 + 1000);
+                    break;
+                }
+
+                // to start the AD
+                if (adObject.adStart <= pos &&  adObject.adEnd >= pos && !adObject.started) {
+                    WritableMap eventData = Arguments.createMap();
+                    eventData.putInt("index", i);
+                    adObject.started = true;
+                    eventEmitter.onSSAIAdEvent.invoke("AdBreakStarted", eventData);
+                }
+
+                if (
+                        !isLive &&
+                                isDrm &&
+                                currentAdPlayer >= 0 &&
+                                adsBreakPoints.get(currentAdPlayer).adEnd + 2 < pos &&
+                                !updateSubtitle
+                ) {
+                    updateSubtitle = true;
+                    eventEmitter.onUpdateSubtitle.invoke(getAudioTrackInfo(), getTextTrackInfo());
+                }
+
+                // to end the AD
+                if (adObject.adEnd == pos && !adObject.played) {
+
+                    WritableMap eventData = Arguments.createMap();
+                    eventData.putInt("index", i);
+                    adObject.played = true;
+                    updateSubtitle = false;
+                    eventEmitter.onSSAIAdEvent.invoke("AdBreakEnded", eventData);
+
+                    if (snapBackTimeMs > 0 && !isLive) {
+                        player.seekTo(snapBackTimeMs);
+                        snapBackTimeMs = 0;
+                    }
+                    break;
+                }
+
+                // to send AD progress
+                if (!adObject.played) {
+                    for (int j = 0; j < adObject.slotAds.size(); j++) {
+                        AdObject subAdObject = adObject.slotAds.get(j);
+                        if (subAdObject.adStart <= pos && pos < subAdObject.adEnd) {
+                            currentAdPlayer = i;
+                            WritableMap eventData = Arguments.createMap();
+                            eventData.putInt("adProgress", (int) Math.floor(pos - subAdObject.adStart));
+                            eventData.putString("progress", (((pos - subAdObject.adStart * 1.0) / subAdObject.adDuration) * 100) + "%");
+                            eventData.putInt("remainingTime", (int) Math.floor((subAdObject.adEnd - pos)));
+                            eventData.putInt("currentPosition", j + 1);
+                            eventData.putInt("totalCount", adObject.slotAds.size());
+                            eventData.putInt("currentSlot", i);
+                            eventEmitter.onSSAIAdEvent.invoke("AdProgress", eventData);
+                        }
+                    }
+                }
+            }
+            eventEmitter.onAdEventTracking.invoke(pos);
+        }
+    }
+
 
     public double getPositionInFirstPeriodMsForCurrentWindow(long currentPosition) {
         Timeline.Window window = new Timeline.Window();
@@ -2534,13 +2662,31 @@ public class ReactExoplayerView extends FrameLayout implements
                     this.adsBreakPoints.add(adObject);
 
                 }
-
+                contentUtils = new ContentUtils(this.adsBreakPoints);
                 WritableMap eventData = Arguments.createMap();
                 eventData.putArray("cuePoints", writableArrayOfCuePoints);
                 eventEmitter.onSSAIAdEvent.invoke("CuePointsChange", eventData);
             }
         }
 
+    }
+
+    public void fireYouboraEvent(ReadableMap event) {
+        String eventName = event.hasKey("event") ? event.getString("event") : null;
+        ReadableMap dimensions = event.hasKey("dimensions") ? event.getMap("dimensions") : null;
+        if (eventName == null || dimensions == null) return;
+
+        Map<String, String> dimMap = new HashMap<>();
+        ReadableMapKeySetIterator iterator = dimensions.keySetIterator();
+        while (iterator.hasNextKey()) {
+            String key = iterator.nextKey();
+            String value = dimensions.getString(key);
+            dimMap.put(key, value);
+        }
+
+        if (youboraAdapter != null) {
+            youboraAdapter.fireEvent(eventName, dimMap, new HashMap<>(), new HashMap<>());
+        }
     }
 
 //

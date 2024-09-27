@@ -461,4 +461,9 @@ class ReactExoplayerViewManager(private val config: ReactExoplayerConfig) : View
 
         videoView.setAdsBreakPoints(adsBreakPoints)
     }
+
+    @ReactProp(name = PROP_YOUBORA_FIRE_EVENT)
+    fun setYouboraFireEvent(videoView: ReactExoplayerView, event: ReadableMap?) {
+        videoView.fireYouboraEvent(event)
+    }
 }

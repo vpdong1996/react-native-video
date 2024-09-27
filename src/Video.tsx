@@ -69,6 +69,7 @@ export interface VideoRef {
   setFullScreen: (fullScreen: boolean) => void;
   save: (options: object) => Promise<VideoSaveData> | void;
   getCurrentPosition: () => Promise<number>;
+  fireYouboraEvent: (event: string, dimensions: object) => void;
 }
 
 const Video = forwardRef<VideoRef, ReactVideoProps>(
@@ -373,6 +374,15 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       [setFullScreen],
     );
 
+    const fireYouboraEvent = useCallback(
+      (event: string, dimensions: object) => {
+        return NativeVideoManager.fireYouboraEvent(getReactTag(nativeRef), {
+          event,
+          dimensions,
+        }
+      )
+    }, []);
+
     const save = useCallback((options: object) => {
       // VideoManager.save can be null on android & windows
       if (Platform.OS !== 'ios') {
@@ -627,6 +637,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
         setVolume,
         getCurrentPosition,
         setFullScreen,
+        fireYouboraEvent
       }),
       [
         seek,
@@ -639,6 +650,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
         setVolume,
         getCurrentPosition,
         setFullScreen,
+        fireYouboraEvent
       ],
     );
 

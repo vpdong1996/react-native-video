@@ -5,6 +5,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.UiThreadUtil
 import com.facebook.react.uimanager.UIManagerHelper
 import com.facebook.react.uimanager.common.UIManagerType
@@ -67,6 +68,13 @@ class VideoManagerModule(reactContext: ReactApplicationContext?) : ReactContextB
     fun getCurrentPosition(reactTag: Int, promise: Promise) {
         performOnPlayerView(reactTag) {
             it?.getCurrentPosition(promise)
+        }
+    }
+
+    @ReactMethod
+    fun fireYouboraEvent(reactTag: Int, eventData: ReadableMap) {
+        performOnPlayerView(reactTag) {
+            it?.fireYouboraEvent(eventData);
         }
     }
 
