@@ -266,7 +266,6 @@ public class ReactExoplayerView extends FrameLayout implements
     private boolean showNotificationControls = false;
     private boolean isLive = false;
     private boolean isDrm = false;
-    private long seekTime = C.TIME_UNSET;
     private long dashStartTime = 0;
     private boolean updateSubtitle = false;
     private Long firstWindowPosition;
@@ -2350,7 +2349,30 @@ public class ReactExoplayerView extends FrameLayout implements
 
     public void seekTo(long positionMs) {
         if (player != null) {
-            player.seekTo(positionMs);
+            if (adsBreakPoints.size() > 0) {
+                positionMs = (long) Math.floor(contentUtils.getStreamTime(positionMs));
+                long seekToTime = positionMs;
+                boolean adPlayed = false;
+                for (int i = 0; i < adsBreakPoints.size(); i++) {
+                    AdObject adObject = adsBreakPoints.get(i);
+                    long adStartTime = adObject.adStart * 1000;
+
+                    if (positionMs >= adStartTime) {
+                        seekToTime = adStartTime + 400;
+                        adPlayed = adObject.played;
+                    }
+                }
+                if(adPlayed && seekToTime != positionMs) {
+                    player.seekTo(positionMs);
+                } else if (seekToTime != positionMs) {
+                    snapBackTimeMs = positionMs;
+                    player.seekTo(seekToTime);
+                } else {
+                    player.seekTo(seekToTime);
+                }
+            } else {
+                player.seekTo(positionMs);
+            }
         }
     }
 
@@ -2685,7 +2707,7 @@ public class ReactExoplayerView extends FrameLayout implements
         }
 
         if (youboraAdapter != null) {
-            youboraAdapter.fireEvent(eventName, dimMap, new HashMap<>(), new HashMap<>());
+            youboraAdapter.getPlayerAdapter().fireEvent(eventName, dimMap);
         }
     }
 
