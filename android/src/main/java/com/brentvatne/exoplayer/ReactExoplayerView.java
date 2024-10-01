@@ -17,6 +17,7 @@ import android.content.ServiceConnection;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -113,17 +114,25 @@ import com.brentvatne.common.api.SubtitleStyle;
 import com.brentvatne.common.api.TimedMetadata;
 import com.brentvatne.common.api.Track;
 import com.brentvatne.common.api.VideoTrack;
+import com.brentvatne.common.interfaces.AdObject;
 import com.brentvatne.common.react.VideoEventEmitter;
 import com.brentvatne.common.toolbox.DebugLog;
 import com.brentvatne.common.toolbox.ReactBridgeUtils;
+import com.brentvatne.common.utils.ContentUtils;
 import com.brentvatne.react.BuildConfig;
 import com.brentvatne.react.R;
 import com.brentvatne.react.ReactNativeVideoManager;
 import com.brentvatne.receiver.AudioBecomingNoisyReceiver;
 import com.brentvatne.receiver.BecomingNoisyListener;
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.UiThreadUtil;
+import com.facebook.react.bridge.WritableArray;
+import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.google.ads.interactivemedia.v3.api.AdError;
 import com.google.ads.interactivemedia.v3.api.AdErrorEvent;
@@ -131,11 +140,20 @@ import com.google.ads.interactivemedia.v3.api.AdEvent;
 import com.google.ads.interactivemedia.v3.api.ImaSdkFactory;
 import com.google.ads.interactivemedia.v3.api.ImaSdkSettings;
 import com.google.common.collect.ImmutableList;
+import com.npaw.NpawPlugin;
+import com.npaw.NpawPluginProvider;
+import com.npaw.analytics.video.WillSendRequestListener;
+import com.npaw.analytics.video.VideoAdapter;
+import com.npaw.core.data.Services;
+import com.npaw.core.options.AnalyticsOptions;
+import com.npaw.media3.exoplayer.Media3ExoPlayerBalancer;
 
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -182,6 +200,7 @@ public class ReactExoplayerView extends FrameLayout implements
 
     private DataSource.Factory mediaDataSourceFactory;
     private ExoPlayer player;
+    Media3ExoPlayerBalancer balancer;
     private DefaultTrackSelector trackSelector;
     private boolean playerNeedsSource;
     private ServiceConnection playbackServiceConnection;
@@ -216,9 +235,9 @@ public class ReactExoplayerView extends FrameLayout implements
     private ControlsConfig controlsConfig = new ControlsConfig();
 
     /*
-    * When user is seeking first called is on onPositionDiscontinuity -> DISCONTINUITY_REASON_SEEK
-    * Then we set if to false when playback is back in onIsPlayingChanged -> true
-    */
+     * When user is seeking first called is on onPositionDiscontinuity -> DISCONTINUITY_REASON_SEEK
+     * Then we set if to false when playback is back in onIsPlayingChanged -> true
+     */
     private boolean isSeeking = false;
     private long seekPosition = -1;
 
@@ -242,8 +261,16 @@ public class ReactExoplayerView extends FrameLayout implements
     private boolean controls;
     private Uri adTagUrl;
     private String adLanguage;
-
+    private ArrayList<AdObject> adsBreakPoints = new ArrayList<AdObject>();
+    private Date joinDate;
     private boolean showNotificationControls = false;
+    private boolean isLive = false;
+    private boolean isDrm = false;
+    private long dashStartTime = 0;
+    private boolean updateSubtitle = false;
+    private Long firstWindowPosition;
+    private int currentAdPlayer = -1;
+    private long snapBackTimeMs;
     // \ End props
 
     // React
@@ -263,6 +290,21 @@ public class ReactExoplayerView extends FrameLayout implements
 
     private CmcdConfiguration.Factory cmcdConfigurationFactory;
 
+    // (Youbora || React) props
+    private static VideoAdapter youboraAdapter = null;
+    private boolean enableCdnBalancer = false;
+    public int errorRetries = 0;
+    WillSendRequestListener errorOverridedListener;
+
+
+    // Internal variables
+    public static int qualityCounter = 1;
+    public static boolean isTrailer = true;
+    public static String drmUserToken = "";
+    private int manifestType = -1;
+    private ContentUtils contentUtils;
+
+
     public void setCmcdConfigurationFactory(CmcdConfiguration.Factory factory) {
         this.cmcdConfigurationFactory = factory;
     }
@@ -275,8 +317,53 @@ public class ReactExoplayerView extends FrameLayout implements
             long bufferedDuration = player.getBufferedPercentage() * player.getDuration() / 100;
             long duration = player.getDuration();
             long pos = player.getCurrentPosition();
+            long temPos = pos;
+
             if (pos > duration) {
                 pos = duration;
+                temPos = pos;
+            }
+
+            if (joinDate == null) {
+                joinDate = new Date();
+            }
+
+            if (
+                    !isLive &&
+                            isDrm &&
+                            pos >= 2000 &&
+                            !updateSubtitle &&
+                            adsBreakPoints.isEmpty()
+            ) {
+                updateSubtitle = true;
+                eventEmitter.onUpdateSubtitle.invoke(getAudioTrackInfo(), getTextTrackInfo());
+            }
+
+            if (
+                    !adsBreakPoints.isEmpty() &&
+                            player.getCurrentManifest() != null &&
+                            isDrm &&
+                            isLive &&
+                            player != null
+            ) {
+                temPos = dashStartTime + (new Date().getTime() - joinDate.getTime()) / 1000;
+            } else if (
+                    !adsBreakPoints.isEmpty() &&
+                            player.getCurrentManifest() != null &&
+                            !isDrm &&
+                            isLive &&
+                            player != null
+            ) {
+                temPos = (new Date().getTime() - joinDate.getTime()) / 1000 + firstWindowPosition;
+            } else {
+                temPos = player.getCurrentPosition() / 1000;
+            }
+
+            handleSSAI(temPos);
+
+            if (!adsBreakPoints.isEmpty() && !isLive) {
+                pos = contentUtils.getContentTime(pos);
+                duration = contentUtils.getContentTime(duration);
             }
 
             if (lastPos != pos
@@ -300,6 +387,76 @@ public class ReactExoplayerView extends FrameLayout implements
             }
         }
     };
+
+    public void handleSSAI(long pos) {
+        if (!adsBreakPoints.isEmpty()) {
+            for (int i = 0; i < adsBreakPoints.size(); i++) {
+                AdObject adObject = adsBreakPoints.get(i);
+
+                // to skip an ad if was played
+
+                if (adObject.adStart - 1 <= pos && pos < adObject.adEnd && adObject.played && !isLive) {
+                    player.seekTo(adObject.adEnd * 1000 + 1000);
+                    break;
+                }
+
+                // to start the AD
+                if (adObject.adStart <= pos &&  adObject.adEnd >= pos && !adObject.started) {
+                    WritableMap eventData = Arguments.createMap();
+                    eventData.putInt("index", i);
+                    adObject.started = true;
+                    eventEmitter.onSSAIAdEvent.invoke("AdBreakStarted", eventData);
+                }
+
+                if (
+                        !isLive &&
+                                isDrm &&
+                                currentAdPlayer >= 0 &&
+                                adsBreakPoints.get(currentAdPlayer).adEnd + 2 < pos &&
+                                !updateSubtitle
+                ) {
+                    updateSubtitle = true;
+                    eventEmitter.onUpdateSubtitle.invoke(getAudioTrackInfo(), getTextTrackInfo());
+                }
+
+                // to end the AD
+                if (adObject.adEnd == pos && !adObject.played) {
+
+                    WritableMap eventData = Arguments.createMap();
+                    eventData.putInt("index", i);
+                    adObject.played = true;
+                    updateSubtitle = false;
+                    eventEmitter.onSSAIAdEvent.invoke("AdBreakEnded", eventData);
+
+                    if (snapBackTimeMs > 0 && !isLive) {
+                        player.seekTo(snapBackTimeMs);
+                        snapBackTimeMs = 0;
+                    }
+                    break;
+                }
+
+                // to send AD progress
+                if (!adObject.played) {
+                    for (int j = 0; j < adObject.slotAds.size(); j++) {
+                        AdObject subAdObject = adObject.slotAds.get(j);
+                        if (subAdObject.adStart <= pos && pos < subAdObject.adEnd) {
+                            currentAdPlayer = i;
+                            WritableMap eventData = Arguments.createMap();
+                            eventData.putInt("adProgress", (int) Math.floor(pos - subAdObject.adStart));
+                            eventData.putString("progress", (((pos - subAdObject.adStart * 1.0) / subAdObject.adDuration) * 100) + "%");
+                            eventData.putInt("remainingTime", (int) Math.floor((subAdObject.adEnd - pos)));
+                            eventData.putInt("currentPosition", j + 1);
+                            eventData.putInt("totalCount", adObject.slotAds.size());
+                            eventData.putInt("currentSlot", i);
+                            eventEmitter.onSSAIAdEvent.invoke("AdProgress", eventData);
+                        }
+                    }
+                }
+            }
+            eventEmitter.onSSAIAdEventTracking.invoke(pos);
+        }
+    }
+
 
     public double getPositionInFirstPeriodMsForCurrentWindow(long currentPosition) {
         Timeline.Window window = new Timeline.Window();
@@ -752,7 +909,7 @@ public class ReactExoplayerView extends FrameLayout implements
                 .setAdEventListener(this)
                 .setAdErrorListener(this)
                 .build();
-        DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(mediaDataSourceFactory);
+        DefaultMediaSourceFactory mediaSourceFactory = this.enableCdnBalancer ? new Media3ExoPlayerBalancer(NpawPluginProvider.getInstance()).getMediaSourceFactory() : new DefaultMediaSourceFactory(mediaDataSourceFactory);
         if (useCache) {
             mediaSourceFactory.setDataSourceFactory(RNVSimpleCache.INSTANCE.getCacheFactory(buildHttpDataSourceFactory(true)));
         }
@@ -787,6 +944,13 @@ public class ReactExoplayerView extends FrameLayout implements
         if(showNotificationControls) {
             setupPlaybackService();
         }
+
+        // Youbora Adapter
+        if (NpawPluginProvider.getInstance() != null && youboraAdapter == null) {
+            youboraAdapter = NpawPluginProvider.getInstance().videoBuilder().setPlayerAdapter(new YouboraCustomAdapter(this.getContext(), player, this)).build();
+            youboraAdapter.addOnWillSendRequestListener(errorOverridedListener);
+            youboraAdapter.removeOnWillSendRequestListener(errorOverridedListener);
+        }
     }
 
     private DrmSessionManager initializePlayerDrm() {
@@ -804,7 +968,7 @@ public class ReactExoplayerView extends FrameLayout implements
                             : (e.reason == UnsupportedDrmException.REASON_UNSUPPORTED_SCHEME
                             ? R.string.error_drm_unsupported_scheme : R.string.error_drm_unknown);
                     eventEmitter.onVideoError.invoke(getResources().getString(errorStringId), e, "3003");
-                        }
+                }
             }
         }
         return drmSessionManager;
@@ -825,6 +989,14 @@ public class ReactExoplayerView extends FrameLayout implements
         ArrayList<MediaSource> mediaSourceList = buildTextSources();
         MediaSource videoSource = buildMediaSource(source.getUri(), source.getExtension(), drmSessionManager, source.getCropStartMs(), source.getCropEndMs());
         MediaSource mediaSourceWithAds = null;
+        DefaultMediaSourceFactory balancerMediaSourceFactory = null;
+
+        if (enableCdnBalancer) {
+            balancer = new Media3ExoPlayerBalancer(NpawPluginProvider.getInstance());
+            balancerMediaSourceFactory = balancer.getMediaSourceFactory();
+            balancerMediaSourceFactory.setDrmSessionManagerProvider(drmSessionManager != null ? ((_mediaItem) -> drmSessionManager) : new DefaultDrmSessionManagerProvider());
+        }
+
         if (adTagUrl != null && adsLoader != null) {
             DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(mediaDataSourceFactory)
                     .setLocalAdInsertionComponents(unusedAdTagUri -> adsLoader, exoPlayerView);
@@ -836,19 +1008,24 @@ public class ReactExoplayerView extends FrameLayout implements
                 adsLoader = null;
             }
         }
+
         MediaSource mediaSource;
+
         if (mediaSourceList.isEmpty()) {
-            if (mediaSourceWithAds != null) {
-                mediaSource = mediaSourceWithAds;
-            } else {
-                mediaSource = videoSource;
+            mediaSource = mediaSourceWithAds != null ? mediaSourceWithAds : videoSource;
+
+            if (enableCdnBalancer) {
+                mediaSource = balancerMediaSourceFactory.createMediaSource(mediaSource.getMediaItem());
             }
         } else {
-            if (mediaSourceWithAds != null) {
-                mediaSourceList.add(0, mediaSourceWithAds);
-            } else {
-                mediaSourceList.add(0, videoSource);
+            MediaSource source = mediaSourceWithAds != null ? mediaSourceWithAds : videoSource;
+
+            if (enableCdnBalancer) {
+                source = balancerMediaSourceFactory.createMediaSource(source.getMediaItem());
             }
+
+            mediaSourceList.add(0, source);
+
             MediaSource[] textSourceArray = mediaSourceList.toArray(
                     new MediaSource[mediaSourceList.size()]
             );
@@ -1164,6 +1341,8 @@ public class ReactExoplayerView extends FrameLayout implements
     }
 
     private void releasePlayer() {
+        releaseYoubora();
+
         if (player != null) {
             if (adsLoader != null) {
                 adsLoader.setPlayer(null);
@@ -1708,7 +1887,6 @@ public class ReactExoplayerView extends FrameLayout implements
         }
 
         eventEmitter.onVideoPlaybackStateChanged.invoke(isPlaying, isSeeking);
-        
         if (isPlaying) {
             isSeeking = false;
         }
@@ -1809,7 +1987,7 @@ public class ReactExoplayerView extends FrameLayout implements
             boolean isSourceEqual = source.isEquals(this.source);
             hasDrmFailed = false;
             this.source = source;
-            this.mediaDataSourceFactory =
+            this.mediaDataSourceFactory = this.enableCdnBalancer ? new Media3ExoPlayerBalancer(NpawPluginProvider.getInstance()).getDataSourceFactory(source.getHeaders()) :
                     DataSourceUtil.getDefaultDataSourceFactory(this.themedReactContext, bandwidthMeter,
                             source.getHeaders());
 
@@ -2171,7 +2349,30 @@ public class ReactExoplayerView extends FrameLayout implements
 
     public void seekTo(long positionMs) {
         if (player != null) {
-            player.seekTo(positionMs);
+            if (adsBreakPoints.size() > 0) {
+                positionMs = (long) Math.floor(contentUtils.getStreamTime(positionMs));
+                long seekToTime = positionMs;
+                boolean adPlayed = false;
+                for (int i = 0; i < adsBreakPoints.size(); i++) {
+                    AdObject adObject = adsBreakPoints.get(i);
+                    long adStartTime = adObject.adStart * 1000;
+
+                    if (positionMs >= adStartTime) {
+                        seekToTime = adStartTime + 400;
+                        adPlayed = adObject.played;
+                    }
+                }
+                if(adPlayed && seekToTime != positionMs) {
+                    player.seekTo(positionMs);
+                } else if (seekToTime != positionMs) {
+                    snapBackTimeMs = positionMs;
+                    player.seekTo(seekToTime);
+                } else {
+                    player.seekTo(seekToTime);
+                }
+            } else {
+                player.seekTo(positionMs);
+            }
         }
     }
 
@@ -2391,4 +2592,129 @@ public class ReactExoplayerView extends FrameLayout implements
         controlsConfig = controlsStyles;
         refreshProgressBarVisibility();
     }
+
+    public void setYouboraParams(String accountCode, AnalyticsOptions youboraOptions) {
+        if (youboraOptions == null) {
+            releaseYoubora();
+            return;
+        }
+
+        // Import options from bundle: https://documentation.npaw.com/integration-docs/docs/options-analytics-android#option-2-import-bundle-directly-to-analyticsoptions
+        if (NpawPluginProvider.getInstance() != null) {
+            Bundle analyticsOptionsBundle = youboraOptions.toBundle();
+            NpawPluginProvider.getInstance().getAnalyticsOptions().fromBundle(analyticsOptionsBundle);
+        } else {
+            NpawPluginProvider.initialize(accountCode, themedReactContext.getCurrentActivity(), youboraOptions);
+        }
+
+
+        errorOverridedListener = (serviceName, videoAdapter, map) -> {
+            switch (serviceName) {
+                case Services.ERROR:
+                    if (!youboraAdapter.isDestroying()) {
+                        youboraAdapter.destroy();
+                        youboraAdapter = null;
+                    };
+                    break;
+            }
+        };
+//        didBehindLiveWindowHappen = false;
+        isTrailer = false;
+        drmUserToken = "";
+        qualityCounter = 1;
+        manifestType = -1;
+    }
+
+    private void releaseYoubora() {
+        if (NpawPluginProvider.getInstance() != null) NpawPluginProvider.destroy();
+        if (youboraAdapter != null) {
+            youboraAdapter.destroy();
+            youboraAdapter = null;
+        };
+    }
+
+//    public void setExoPlayerCallback(ExoPlayerCallback callback) {
+//        playerCallback = callback;
+//        eventEmitter.playerCallback = callback;
+//    }
+    public long getCurrentPositionMs() {
+        if (player != null) {
+            return player.getCurrentPosition();
+        }
+        return 0;
+    }
+
+    public long getDuration() {
+        if (player != null) {
+            return player.getDuration();
+        }
+        return 0;
+    }
+
+    public void setEnableCdnBalancerModifier(boolean enableCdnBalancer) {
+        this.enableCdnBalancer = enableCdnBalancer;
+    }
+
+    public void setAdsBreakPoints(ReadableArray adsBreakPoints) {
+        if (adsBreakPoints != null && player != null) {
+            this.adsBreakPoints.clear();
+            long duration = player.getDuration();
+            if (duration > 0) {
+                WritableArray writableArrayOfCuePoints = Arguments.createArray();
+                for (int i = 0; i < adsBreakPoints.size(); i++) {
+                    final ReadableMap arg_object = adsBreakPoints.getMap(i);
+                    final double adStartTime = (long) arg_object.getDouble("start");
+                    long adDuration = (long) arg_object.getDouble("duration");
+                    long startTime = (long) Math.floor(arg_object.getDouble("start"));
+                    long endTime = (long) Math.floor(arg_object.getDouble("end"));
+                    final boolean played = arg_object.getBoolean("played");
+                    boolean started = arg_object.getBoolean("started");
+                    ReadableArray ads = arg_object.getArray("ads");
+                    ArrayList<AdObject> slotAds = new ArrayList<AdObject>();
+                    for (int j = 0; j < ads.size(); j++) {
+                        final ReadableMap adObject = ads.getMap(j);
+                        long subAdStartTime = (long) (adObject.getDouble("startTimeInSeconds"));
+                        long subAdDuration = (long) (adObject.getDouble("durationInSeconds"));
+                        long subAdEndingTime = (subAdStartTime + subAdDuration);
+                        slotAds.add(new AdObject(subAdStartTime, subAdEndingTime, subAdDuration));
+                    }
+
+                    writableArrayOfCuePoints.pushDouble(adStartTime);
+                    AdObject adObject = new AdObject(startTime, endTime, adDuration, played, started, slotAds);
+                    this.adsBreakPoints.add(adObject);
+
+                }
+                contentUtils = new ContentUtils(this.adsBreakPoints);
+                WritableMap eventData = Arguments.createMap();
+                eventData.putArray("cuePoints", writableArrayOfCuePoints);
+                eventEmitter.onSSAIAdEvent.invoke("CuePointsChange", eventData);
+            }
+        }
+
+    }
+
+    public void fireYouboraEvent(ReadableMap event) {
+        String eventName = event.hasKey("event") ? event.getString("event") : null;
+        ReadableMap dimensions = event.hasKey("dimensions") ? event.getMap("dimensions") : null;
+        if (eventName == null || dimensions == null) return;
+
+        Map<String, String> dimMap = new HashMap<>();
+        ReadableMapKeySetIterator iterator = dimensions.keySetIterator();
+        while (iterator.hasNextKey()) {
+            String key = iterator.nextKey();
+            String value = dimensions.getString(key);
+            dimMap.put(key, value);
+        }
+
+        if (youboraAdapter != null) {
+            youboraAdapter.getPlayerAdapter().fireEvent(eventName, dimMap);
+        }
+    }
+
+//
+//    public void setAdsSrc(String src) {
+//        this.srcUri = Uri.parse(src);
+//        reloadSource();
+//    }
+//
 }

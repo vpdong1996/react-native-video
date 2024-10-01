@@ -308,6 +308,51 @@ export type OnControlsVisibilityChange = Readonly<{
   isVisible: boolean;
 }>;
 
+
+type YouboraParams = Readonly<{
+  accountCode: string;
+  isLive: boolean;
+  contentType: string;
+  tvShow?: string;
+  season?: string;
+  contentDuration: number;
+  contentPackage: string;
+  username: string;
+  userType: string;
+  appName: string;
+  releaseVersion: string;
+  contentTransactionCode: string;
+  title?: string;
+  program: string;
+  contentId: string;
+  contentResource?: string;
+  contentPlaybackType: string;
+  contentDrm?: any;
+  contentGenre?: string;
+  contentLanguage: string;
+  contentChannels: string;
+  contentStreamingProtocol?: string;
+  enabled: boolean;
+  contentCustomDimension1?: string;
+  contentCustomDimension2?: string;
+  contentCustomDimension3?: string;
+  contentCustomDimension4?: string;
+  contentCustomDimension5?: string;
+  contentCustomDimension6?: string;
+  contentCustomDimension7?: string;
+  contentCustomDimension8?: string;
+  contentCustomDimension9?: any;
+}>;
+
+type OnSSAIAdEventData = Readonly<{
+  data?: {};
+  event: WithDefault<string, 'AdBreakEnded'>;
+}>; 
+
+type OnSSAIAdEventTrackingData = Readonly<{
+  currentTime?: number;
+}>
+
 export interface VideoNativeProps extends ViewProps {
   src?: VideoSrc;
   adTagUrl?: string;
@@ -355,6 +400,7 @@ export interface VideoNativeProps extends ViewProps {
   viewType?: Int32; // Android
   bufferingStrategy?: BufferingStrategyType; // Android
   controlsStyles?: ControlsStyles; // Android
+  youboraParams?: YouboraParams,
   onControlsVisibilityChange?: DirectEventHandler<OnControlsVisibilityChange>;
   onVideoLoad?: DirectEventHandler<OnLoadData>;
   onVideoLoadStart?: DirectEventHandler<OnLoadStartData>;
@@ -386,6 +432,8 @@ export interface VideoNativeProps extends ViewProps {
   onTextTracks?: DirectEventHandler<OnTextTracksData>; // android
   onTextTrackDataChanged?: DirectEventHandler<OnTextTrackDataChangedData>; // iOS
   onVideoTracks?: DirectEventHandler<OnVideoTracksData>; // android
+  onSSAIAdEvent?: DirectEventHandler<OnSSAIAdEventData>;
+  onSSAIAdEventTracking?: DirectEventHandler<OnSSAIAdEventTrackingData>;
 }
 
 type NativeVideoComponentType = HostComponent<VideoNativeProps>;

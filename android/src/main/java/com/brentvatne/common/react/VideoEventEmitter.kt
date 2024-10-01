@@ -14,6 +14,7 @@ import com.facebook.react.uimanager.events.EventDispatcher
 import java.io.PrintWriter
 import java.io.StringWriter
 
+
 enum class EventTypes(val eventName: String) {
     EVENT_LOAD_START("onVideoLoadStart"),
     EVENT_LOAD("onVideoLoad"),
@@ -42,7 +43,10 @@ enum class EventTypes(val eventName: String) {
 
     EVENT_TEXT_TRACK_DATA_CHANGED("onTextTrackDataChanged"),
     EVENT_VIDEO_TRACKS("onVideoTracks"),
-    EVENT_ON_RECEIVE_AD_EVENT("onReceiveAdEvent");
+    EVENT_ON_RECEIVE_AD_EVENT("onReceiveAdEvent"),
+    EVENT_ON_SSAI_AD_EVENT("onSSAIAdEvent"),
+    EVENT_ON__SSAI_AD_EVENT_TRACKING("onSSAIAdEventTracking"),
+    EVENT_ON_UPDATE_SUBTITLE_AND_AUDIO("onUpdateSubtitleAndAudio");
 
     companion object {
         fun toMap() =
@@ -90,6 +94,9 @@ class VideoEventEmitter {
     lateinit var onVideoTracks: (videoTracks: ArrayList<VideoTrack>?) -> Unit
     lateinit var onTextTrackDataChanged: (textTrackData: String) -> Unit
     lateinit var onReceiveAdEvent: (adEvent: String, adData: Map<String?, String?>?) -> Unit
+    lateinit var onSSAIAdEvent: (adEvent: String, adData: WritableMap?) -> Unit
+    lateinit var onSSAIAdEventTracking: (pos: Long) -> Unit
+    lateinit var onUpdateSubtitle: (audioTracks: ArrayList<Track>, textTracks: ArrayList<Track>) -> Unit
 
     fun addEventEmitters(reactContext: ThemedReactContext, view: ReactExoplayerView) {
         val dispatcher = UIManagerHelper.getEventDispatcherForReactTag(reactContext, view.id)
@@ -276,6 +283,26 @@ class VideoEventEmitter {
                             }
                         }
                     )
+                }
+            }
+            onSSAIAdEvent = {adEvent, adData ->
+                event.dispatch(EventTypes.EVENT_ON_SSAI_AD_EVENT) {
+                    putString("type", adEvent)
+                    putMap("data", adData)
+                }
+            }
+            onSSAIAdEventTracking = { pos ->
+                event.dispatch(EventTypes.EVENT_ON__SSAI_AD_EVENT_TRACKING) {
+                    putDouble("currentTime", pos.toDouble());
+                }
+            }
+            onUpdateSubtitle = {audioTracks, textTracks ->
+                event.dispatch(EventTypes.EVENT_ON_UPDATE_SUBTITLE_AND_AUDIO) {
+                    val waAudioTracks = audioTracksToArray(audioTracks)
+                    val waTextTracks = textTracksToArray(textTracks)
+
+                    putArray(EventTypes.EVENT_AUDIO_TRACKS.toString(), waAudioTracks)
+                    putArray(EventTypes.EVENT_TEXT_TRACKS.toString(), waTextTracks)
                 }
             }
         }

@@ -15,10 +15,13 @@ import com.brentvatne.common.react.EventTypes
 import com.brentvatne.common.toolbox.DebugLog
 import com.brentvatne.common.toolbox.ReactBridgeUtils
 import com.brentvatne.react.ReactNativeVideoManager
+import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.ViewGroupManager
 import com.facebook.react.uimanager.annotations.ReactProp
+import com.npaw.core.options.AnalyticsOptions
+
 
 class ReactExoplayerViewManager(private val config: ReactExoplayerConfig) : ViewGroupManager<ReactExoplayerView>() {
 
@@ -65,6 +68,47 @@ class ReactExoplayerViewManager(private val config: ReactExoplayerConfig) : View
         private const val PROP_SHOW_NOTIFICATION_CONTROLS = "showNotificationControls"
         private const val PROP_DEBUG = "debug"
         private const val PROP_CONTROLS_STYLES = "controlsStyles"
+
+        // Youbora Props
+        private const val PROP_ENABLE_CDN_BALANCER = "enableCdnBalancer";
+        private const val PROP_YOUBORA_FIRE_EVENT: String = "youboraFireEvent"
+        private const val PROP_YOUBORA_PARAMS: String = "youboraParams"
+        private const val PROP_YOUBORA_ACCOUNT_CODE: String = "accountCode"
+        private const val PROP_YOUBORA_USERNAME: String = "username"
+        private const val PROP_YOUBORA_CONTENT_TRANSACTION_CODE: String = "contentTransactionCode"
+        private const val PROP_YOUBORA_IS_LIVE: String = "isLive"
+        private const val PROP_YOUBORA_PARSE_CDN_NODE: String = "parseCdnNode"
+        private const val PROP_YOUBORA_ENABLED: String = "enabled"
+        private const val PROP_YOUBORA_TITLE: String = "title"
+        private const val PROP_YOUBORA_PROGRAM: String = "program"
+        private const val PROP_YOUBORA_TV_SHOW: String = "tvShow"
+        private const val PROP_YOUBORA_SEASON: String = "season"
+        private const val PROP_YOUBORA_CONTENT_TYPE: String = "contentType"
+        private const val PROP_YOUBORA_CONTENT_ID: String = "contentId"
+        private const val PROP_YOUBORA_CONTENT_PLAYBACK_TYPE: String = "contentPlaybackType"
+        private const val PROP_YOUBORA_CONTENT_PACKAGE: String = "contentPackage"
+        private const val PROP_YOUBORA_CONTENT_DURATION: String = "contentDuration"
+        private const val PROP_YOUBORA_CONTENT_DRM: String = "contentDrm"
+        private const val PROP_YOUBORA_CONTENT_RESOURCE: String = "contentResource"
+        private const val PROP_YOUBORA_CONTENT_GENRE: String = "contentGenre"
+        private const val PROP_YOUBORA_CONTENT_LANGUAGE: String = "contentLanguage"
+        private const val PROP_YOUBORA_CONTENT_CHANNELS: String = "contentChannels"
+        private const val PROP_YOUBORA_CONTENT_STREAMING_PROTOCOL: String = "contentStreamingProtocol"
+        private const val PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_1: String = "contentCustomDimension1"
+        private const val PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_2: String = "contentCustomDimension2"
+        private const val PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_3: String = "contentCustomDimension3"
+        private const val PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_4: String = "contentCustomDimension4"
+        private const val PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_5: String = "contentCustomDimension5"
+        private const val PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_6: String = "contentCustomDimension6"
+        private const val PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_7: String = "contentCustomDimension7"
+        private const val PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_8: String = "contentCustomDimension8"
+        private const val PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_9: String = "contentCustomDimension9"
+        private const val PROP_YOUBORA_RENDITION: String = "rendition"
+        private const val PROP_YOUBORA_USER_TYPE: String = "userType"
+        private const val PROP_YOUBORA_APP_NAME: String = "appName"
+        private const val PROP_YOUBORA_RELEASE_VERSION: String = "releaseVersion"
+        private const val PROP_LANGUAGE: String = "language"
+        private const val PROP_AD_BREAK_POINT: String = "adsBreakPoints";
     }
 
     override fun getName(): String = REACT_CLASS
@@ -304,5 +348,122 @@ class ReactExoplayerViewManager(private val config: ReactExoplayerConfig) : View
     fun setControlsStyles(videoView: ReactExoplayerView, controlsStyles: ReadableMap?) {
         val controlsConfig = ControlsConfig.parse(controlsStyles)
         videoView.setControlsStyles(controlsConfig)
+    }
+
+    @ReactProp(name = PROP_ENABLE_CDN_BALANCER, defaultBoolean = false)
+    fun setEnableCdnBalancer(videoView: ReactExoplayerView, enableCdnBalancer: Boolean) {
+        videoView.setEnableCdnBalancerModifier(enableCdnBalancer)
+    }
+
+    @ReactProp(name = PROP_YOUBORA_PARAMS)
+    fun setYouboraParams(videoView: ReactExoplayerView, src: ReadableMap?) {
+        if (src == null) {
+            videoView.setYouboraParams(null, null)
+            return
+        }
+
+        val accountCode: String? = if (src.hasKey(PROP_YOUBORA_ACCOUNT_CODE)) src.getString(PROP_YOUBORA_ACCOUNT_CODE) else null
+        val username: String? = if (src.hasKey(PROP_YOUBORA_USERNAME)) src.getString(PROP_YOUBORA_USERNAME) else null
+        val contentTransactionCode: String? =
+            if (src.hasKey(PROP_YOUBORA_CONTENT_TRANSACTION_CODE)) src.getString(PROP_YOUBORA_CONTENT_TRANSACTION_CODE) else null
+        val isLive = if (src.hasKey(PROP_YOUBORA_IS_LIVE)) src.getBoolean(PROP_YOUBORA_IS_LIVE) else false
+        val parseCdnNode = if (src.hasKey(PROP_YOUBORA_PARSE_CDN_NODE)) src.getBoolean(PROP_YOUBORA_PARSE_CDN_NODE) else false
+        val enabled = if (src.hasKey(PROP_YOUBORA_ENABLED)) src.getBoolean(PROP_YOUBORA_ENABLED) else false
+        val title: String? = if (src.hasKey(PROP_YOUBORA_TITLE)) src.getString(PROP_YOUBORA_TITLE) else null
+        val program: String? = if (src.hasKey(PROP_YOUBORA_PROGRAM)) src.getString(PROP_YOUBORA_PROGRAM) else null
+        val tvShow: String? = if (src.hasKey(PROP_YOUBORA_TV_SHOW)) src.getString(PROP_YOUBORA_TV_SHOW) else null
+        val season: String? = if (src.hasKey(PROP_YOUBORA_SEASON)) src.getString(PROP_YOUBORA_SEASON) else null
+        val contentType: String? = if (src.hasKey(PROP_YOUBORA_CONTENT_TYPE)) src.getString(PROP_YOUBORA_CONTENT_TYPE) else null
+        val contentId: String? = if (src.hasKey(PROP_YOUBORA_CONTENT_ID)) src.getString(PROP_YOUBORA_CONTENT_ID) else null
+        val contentPlaybackType: String? =
+            if (src.hasKey(PROP_YOUBORA_CONTENT_PLAYBACK_TYPE)) src.getString(PROP_YOUBORA_CONTENT_PLAYBACK_TYPE) else null
+        val contentPackage: String? = if (src.hasKey(PROP_YOUBORA_CONTENT_PACKAGE)) src.getString(PROP_YOUBORA_CONTENT_PACKAGE) else null
+        val contentDuration = if (src.hasKey(PROP_YOUBORA_CONTENT_DURATION)) src.getDouble(PROP_YOUBORA_CONTENT_DURATION) else 0.00
+        val contentDrm = if (src.hasKey(PROP_YOUBORA_CONTENT_DRM)) src.getBoolean(PROP_YOUBORA_CONTENT_DRM) else false
+        val contentResource: String? = if (src.hasKey(PROP_YOUBORA_CONTENT_RESOURCE)) src.getString(PROP_YOUBORA_CONTENT_RESOURCE) else null
+        val contentGenre: String? = if (src.hasKey(PROP_YOUBORA_CONTENT_GENRE)) src.getString(PROP_YOUBORA_CONTENT_GENRE) else null
+        val contentLanguage: String? = if (src.hasKey(PROP_YOUBORA_CONTENT_LANGUAGE)) src.getString(PROP_YOUBORA_CONTENT_LANGUAGE) else null
+        val contentChannels: String? = if (src.hasKey(PROP_YOUBORA_CONTENT_CHANNELS)) src.getString(PROP_YOUBORA_CONTENT_CHANNELS) else null
+        val contentStreamingProtocol: String? =
+            if (src.hasKey(PROP_YOUBORA_CONTENT_STREAMING_PROTOCOL)) src.getString(PROP_YOUBORA_CONTENT_STREAMING_PROTOCOL) else null
+        val contentCustomDimension1: String? =
+            if (src.hasKey(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_1)) src.getString(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_1) else null
+        val contentCustomDimension2: String? =
+            if (src.hasKey(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_2)) src.getString(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_2) else null
+        val contentCustomDimension3: String? =
+            if (src.hasKey(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_3)) src.getString(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_3) else null
+        val contentCustomDimension4: String? =
+            if (src.hasKey(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_4)) src.getString(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_4) else null
+        val contentCustomDimension5: String? =
+            if (src.hasKey(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_5)) src.getString(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_5) else null
+        val contentCustomDimension6: String? =
+            if (src.hasKey(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_6)) src.getString(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_6) else null
+        val contentCustomDimension7: String? =
+            if (src.hasKey(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_7)) src.getString(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_7) else null
+        val contentCustomDimension8: String? =
+            if (src.hasKey(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_8)) src.getString(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_8) else null
+        val contentCustomDimension9: String? =
+            if (src.hasKey(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_9)) src.getString(PROP_YOUBORA_CONTENT_CUSTOM_DIMENSION_9) else null
+        val rendition: String? = if (src.hasKey(PROP_YOUBORA_RENDITION)) src.getString(PROP_YOUBORA_RENDITION) else null
+        val userType: String? = if (src.hasKey(PROP_YOUBORA_USER_TYPE)) src.getString(PROP_YOUBORA_USER_TYPE) else null
+
+        val youboraOptions: AnalyticsOptions = AnalyticsOptions()
+
+//        youboraOptions.setAccountCode(accountCode) // Account code
+        youboraOptions.username = username // UserId or Guest
+        youboraOptions.contentTransactionCode = contentTransactionCode // Subscribed or Free
+        youboraOptions.live = isLive // VOD or Live
+        youboraOptions.isParseCdnNode = parseCdnNode // Allow Youbora to parse CDN from Host
+        youboraOptions.isEnabled = enabled
+        youboraOptions.contentRendition = rendition
+
+        youboraOptions.contentTitle = title // Content Title
+        youboraOptions.program = program // Content Title 2
+        youboraOptions.contentTvShow = tvShow // Show name for shows, otherwise empty
+        youboraOptions.contentSeason = season // Season number for shows, otherwise empty
+        youboraOptions.contentType = contentType // movie, series & program
+        youboraOptions.contentId = contentId // Content Id
+        youboraOptions.contentPlaybackType = contentPlaybackType // sVOD or aVOD
+        youboraOptions.contentDuration = contentDuration // Duration in millis
+        youboraOptions.contentDrm = contentDrm.toString()
+        youboraOptions.contentPackage = contentPackage
+        youboraOptions.contentResource = contentResource // Content Url
+        youboraOptions.contentGenre = contentGenre // Content Genre comma separated
+        youboraOptions.contentLanguage = contentLanguage // Content dialects comma separated
+        youboraOptions.contentChannel = contentChannels
+
+        youboraOptions.contentStreamingProtocol = contentStreamingProtocol // HLS, widevine or widevine dash
+
+        youboraOptions.contentCustomDimension1 = contentCustomDimension1
+        youboraOptions.contentCustomDimension2 = contentCustomDimension2
+        youboraOptions.contentCustomDimension3 = contentCustomDimension3
+        youboraOptions.contentCustomDimension4 = contentCustomDimension4
+        youboraOptions.contentCustomDimension5 = contentCustomDimension5
+        youboraOptions.contentCustomDimension6 = contentCustomDimension6
+        youboraOptions.contentCustomDimension7 = contentCustomDimension7
+        youboraOptions.contentCustomDimension8 = contentCustomDimension8
+        youboraOptions.contentCustomDimension9 = contentCustomDimension9
+        youboraOptions.userType = userType
+
+        youboraOptions.appName = if (src.hasKey(PROP_YOUBORA_APP_NAME)) src.getString(PROP_YOUBORA_APP_NAME) else null
+        youboraOptions.appReleaseVersion = if (src.hasKey(PROP_YOUBORA_RELEASE_VERSION)) src.getString(PROP_YOUBORA_RELEASE_VERSION) else null
+        youboraOptions.deviceCode = "AndroidTV"
+
+        videoView.setYouboraParams(accountCode, youboraOptions)
+    }
+
+    @ReactProp(name = PROP_AD_BREAK_POINT)
+    fun setAdsBreakPoints(
+        videoView: ReactExoplayerView,
+        adsBreakPoints: ReadableArray?
+    ) {
+        if (adsBreakPoints == null) return;
+
+        videoView.setAdsBreakPoints(adsBreakPoints)
+    }
+
+    @ReactProp(name = PROP_YOUBORA_FIRE_EVENT)
+    fun setYouboraFireEvent(videoView: ReactExoplayerView, event: ReadableMap?) {
+        videoView.fireYouboraEvent(event)
     }
 }

@@ -53,6 +53,7 @@ import type {
   OnReceiveAdEventData,
   ReactVideoProps,
   CmcdData,
+  OnSSAIAdEventData,
 } from './types';
 
 export interface VideoRef {
@@ -68,6 +69,7 @@ export interface VideoRef {
   setFullScreen: (fullScreen: boolean) => void;
   save: (options: object) => Promise<VideoSaveData> | void;
   getCurrentPosition: () => Promise<number>;
+  fireYouboraEvent: (event: string, dimensions: object) => void;
 }
 
 const Video = forwardRef<VideoRef, ReactVideoProps>(
@@ -89,6 +91,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       useSecureView,
       viewType,
       shutterColor,
+      youboraParams,
       onLoadStart,
       onLoad,
       onError,
@@ -119,6 +122,8 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       onTextTrackDataChanged,
       onVideoTracks,
       onAspectRatio,
+      onSSAIAdEvent,
+      onSSAIAdEventTracking,
       localSourceEncryptionKeyScheme,
       ...rest
     },
@@ -380,6 +385,15 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       [setFullScreen],
     );
 
+    const fireYouboraEvent = useCallback(
+      (event: string, dimensions: object) => {
+        return NativeVideoManager.fireYouboraEvent(getReactTag(nativeRef), {
+          event,
+          dimensions,
+        }
+      )
+    }, []);
+
     const save = useCallback((options: object) => {
       // VideoManager.save can be null on android & windows
       if (Platform.OS !== 'ios') {
@@ -567,6 +581,18 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       [onControlsVisibilityChange],
     );
 
+    const _onSSAIAdEvent = useCallback(
+      (e: NativeSyntheticEvent<OnSSAIAdEventData>) => {
+        onSSAIAdEvent?.(e.nativeEvent);
+      }, [onSSAIAdEvent]
+    )
+
+    const _onSSAIAdEventTracking = useCallback(
+      (e: NativeSyntheticEvent<{currentTime: number}>) => {
+        onSSAIAdEventTracking?.(e.nativeEvent);
+      }, [onSSAIAdEventTracking]
+    )
+
     const selectedDrm = source?.drm || drm;
     const usingExternalGetLicense = selectedDrm?.getLicense instanceof Function;
 
@@ -628,6 +654,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
         setVolume,
         getCurrentPosition,
         setFullScreen,
+        fireYouboraEvent
       }),
       [
         seek,
@@ -640,6 +667,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
         setVolume,
         getCurrentPosition,
         setFullScreen,
+        fireYouboraEvent
       ],
     );
 
@@ -753,6 +781,24 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       [showPoster],
     );
 
+    const _youboraParams = useMemo(() => {
+      if (!youboraParams) {
+        return;
+      }
+      const typeOfValueProp = typeof youboraParams.accountCode;
+      if (
+        typeOfValueProp !== 'string'
+      ) {
+        console.warn(
+          'AccountCode is required ',
+          typeOfValueProp,
+        );
+        return;
+      }
+      return youboraParams;
+    }, [youboraParams]);
+
+
     return (
       <View style={style}>
         <NativeVideoComponent
@@ -832,6 +878,10 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
             onControlsVisibilityChange ? _onControlsVisibilityChange : undefined
           }
           viewType={_viewType}
+          // Customize Props
+          youboraParams={_youboraParams}
+          onSSAIAdEvent={onSSAIAdEvent ? (_onSSAIAdEvent as (e: NativeSyntheticEvent<object>) => void) :undefined}
+          onSSAIAdEventTracking={onSSAIAdEventTracking ? (_onSSAIAdEventTracking as (e: NativeSyntheticEvent<object>) => void) : undefined}
         />
         {_renderPoster()}
       </View>

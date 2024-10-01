@@ -203,6 +203,9 @@ repositories {
         // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
         url "$rootDir/../node_modules/react-native/android"
     }
+
+    maven { url "https://artifact.plugin.npaw.com/artifactory/plugins/android" }
+
     mavenCentral()
 }
 
@@ -218,6 +221,9 @@ dependencies {
 
     implementation "androidx.core:core-ktx:$androidxCore_version"
     implementation "androidx.activity:activity-ktx:$androidxActivity_version"
+
+    implementation "com.npaw.plugin:plugin:7.2.37"
+    implementation "com.npaw.plugin:plugin-media3-exoplayer:$media3_version-7.2.37"
 
     // For media playback using ExoPlayer
     if (media3_buildFromSource) {
@@ -301,5 +307,6 @@ dependencies {
 
         // Common functionality used across multiple media libraries
         implementation "androidx.media3:media3-common:$media3_version"
+        
     }
 }
