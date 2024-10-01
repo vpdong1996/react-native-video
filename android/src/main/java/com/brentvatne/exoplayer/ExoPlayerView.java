@@ -79,10 +79,6 @@ public final class ExoPlayerView extends FrameLayout implements AdViewProvider {
         subtitleLayout.setUserDefaultStyle();
         subtitleLayout.setUserDefaultTextSize();
 
-        subtitleLayout.setStyle(new CaptionStyleCompat(Color.WHITE,Color.TRANSPARENT, Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW, Color.BLACK,null));
-        subtitleLayout.setApplyEmbeddedStyles(false);
-        subtitleLayout.setApplyEmbeddedFontSizes(false);
-
         updateSurfaceView(viewType);
 
         adOverlayFrameLayout = new FrameLayout(context);
@@ -123,6 +119,10 @@ public final class ExoPlayerView extends FrameLayout implements AdViewProvider {
         // ensure we reset subtitle style before reapplying it
         subtitleLayout.setUserDefaultStyle();
         subtitleLayout.setUserDefaultTextSize();
+        
+        subtitleLayout.setStyle(new CaptionStyleCompat(Color.WHITE,Color.TRANSPARENT, Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW, Color.BLACK,null));
+        subtitleLayout.setApplyEmbeddedStyles(false);
+        subtitleLayout.setApplyEmbeddedFontSizes(false);
 
         if (style.getFontSize() > 0) {
             subtitleLayout.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, style.getFontSize());
