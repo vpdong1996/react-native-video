@@ -348,6 +348,10 @@ type OnSSAIAdEventData = Readonly<{
   event: WithDefault<string, 'AdBreakEnded'>;
 }>; 
 
+type OnSSAIAdEventTrackingData = Readonly<{
+  currentTime?: number;
+}>
+
 export interface VideoNativeProps extends ViewProps {
   src?: VideoSrc;
   adTagUrl?: string;
@@ -428,7 +432,8 @@ export interface VideoNativeProps extends ViewProps {
   onTextTracks?: DirectEventHandler<OnTextTracksData>; // android
   onTextTrackDataChanged?: DirectEventHandler<OnTextTrackDataChangedData>; // iOS
   onVideoTracks?: DirectEventHandler<OnVideoTracksData>; // android
-  onSSAIAdEvent?: DirectEventHandler<OnSSAIAdEventData>
+  onSSAIAdEvent?: DirectEventHandler<OnSSAIAdEventData>;
+  onSSAIAdEventTracking?: DirectEventHandler<OnSSAIAdEventTrackingData>;
 }
 
 type NativeVideoComponentType = HostComponent<VideoNativeProps>;

@@ -123,6 +123,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       onVideoTracks,
       onAspectRatio,
       onSSAIAdEvent,
+      onSSAIAdEventTracking,
       ...rest
     },
     ref,
@@ -576,6 +577,12 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       }, [onSSAIAdEvent]
     )
 
+    const _onSSAIAdEventTracking = useCallback(
+      (e: NativeSyntheticEvent<{currentTime: number}>) => {
+        onSSAIAdEventTracking?.(e.nativeEvent);
+      }, [onSSAIAdEventTracking]
+    )
+
     const selectedDrm = source?.drm || drm;
     const usingExternalGetLicense = selectedDrm?.getLicense instanceof Function;
 
@@ -864,6 +871,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
           // Customize Props
           youboraParams={_youboraParams}
           onSSAIAdEvent={onSSAIAdEvent ? (_onSSAIAdEvent as (e: NativeSyntheticEvent<object>) => void) :undefined}
+          onSSAIAdEventTracking={onSSAIAdEventTracking ? (_onSSAIAdEventTracking as (e: NativeSyntheticEvent<object>) => void) : undefined}
         />
         {_renderPoster()}
       </View>

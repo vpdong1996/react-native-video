@@ -237,6 +237,10 @@ export type OnSSAIAdEventData = Readonly<{
   event: WithDefault<'CuePointsChange' | 'AdBreakStarted' | 'AdBreakEnded' | 'AdProgress', 'AdBreakEnded'>;
 }>;
 
+export type OnSSAIAdEventTrackingData = Readonly<{
+  currentTime?: number;
+}>
+
 export interface ReactVideoEvents {
   onAudioBecomingNoisy?: () => void; //Android, iOS
   onAudioFocusChanged?: (e: OnAudioFocusChangedData) => void; // Android
@@ -271,4 +275,5 @@ export interface ReactVideoEvents {
   onVideoTracks?: (e: OnVideoTracksData) => void; //Android
   onAspectRatio?: (e: OnVideoAspectRatioData) => void;
   onSSAIAdEvent?: (e: OnSSAIAdEventData) => void;
+  onSSAIAdEventTracking?: (e: OnSSAIAdEventTrackingData) => void;
 }
