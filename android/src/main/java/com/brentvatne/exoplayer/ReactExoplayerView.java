@@ -453,7 +453,7 @@ public class ReactExoplayerView extends FrameLayout implements
                     }
                 }
             }
-            eventEmitter.onAdEventTracking.invoke(pos);
+            eventEmitter.onSSAIAdEventTracking.invoke(pos);
         }
     }
 

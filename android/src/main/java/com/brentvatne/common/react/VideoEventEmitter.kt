@@ -45,7 +45,7 @@ enum class EventTypes(val eventName: String) {
     EVENT_VIDEO_TRACKS("onVideoTracks"),
     EVENT_ON_RECEIVE_AD_EVENT("onReceiveAdEvent"),
     EVENT_ON_SSAI_AD_EVENT("onSSAIAdEvent"),
-    EVENT_ON_AD_EVENT_TRACKING("onAdEventTracking"),
+    EVENT_ON__SSAI_AD_EVENT_TRACKING("onSSAIAdEventTracking"),
     EVENT_ON_UPDATE_SUBTITLE_AND_AUDIO("onUpdateSubtitleAndAudio");
 
     companion object {
@@ -95,7 +95,7 @@ class VideoEventEmitter {
     lateinit var onTextTrackDataChanged: (textTrackData: String) -> Unit
     lateinit var onReceiveAdEvent: (adEvent: String, adData: Map<String?, String?>?) -> Unit
     lateinit var onSSAIAdEvent: (adEvent: String, adData: WritableMap?) -> Unit
-    lateinit var onAdEventTracking: (pos: Long) -> Unit
+    lateinit var onSSAIAdEventTracking: (pos: Long) -> Unit
     lateinit var onUpdateSubtitle: (audioTracks: ArrayList<Track>, textTracks: ArrayList<Track>) -> Unit
 
     fun addEventEmitters(reactContext: ThemedReactContext, view: ReactExoplayerView) {
@@ -291,8 +291,8 @@ class VideoEventEmitter {
                     putMap("data", adData)
                 }
             }
-            onAdEventTracking = { pos ->
-                event.dispatch(EventTypes.EVENT_ON_AD_EVENT_TRACKING) {
+            onSSAIAdEventTracking = { pos ->
+                event.dispatch(EventTypes.EVENT_ON__SSAI_AD_EVENT_TRACKING) {
                     putDouble("currentTime", pos.toDouble());
                 }
             }
