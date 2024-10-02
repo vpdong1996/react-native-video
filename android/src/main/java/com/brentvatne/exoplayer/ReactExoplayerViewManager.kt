@@ -109,6 +109,7 @@ class ReactExoplayerViewManager(private val config: ReactExoplayerConfig) : View
         private const val PROP_YOUBORA_RELEASE_VERSION: String = "releaseVersion"
         private const val PROP_LANGUAGE: String = "language"
         private const val PROP_AD_BREAK_POINT: String = "adsBreakPoints";
+        private const val PROP_DRM_USER_TOKEN: String = "drmUserToken";
     }
 
     override fun getName(): String = REACT_CLASS
@@ -409,7 +410,6 @@ class ReactExoplayerViewManager(private val config: ReactExoplayerConfig) : View
 
         val youboraOptions: AnalyticsOptions = AnalyticsOptions()
 
-//        youboraOptions.setAccountCode(accountCode) // Account code
         youboraOptions.username = username // UserId or Guest
         youboraOptions.contentTransactionCode = contentTransactionCode // Subscribed or Free
         youboraOptions.live = isLive // VOD or Live
@@ -465,5 +465,10 @@ class ReactExoplayerViewManager(private val config: ReactExoplayerConfig) : View
     @ReactProp(name = PROP_YOUBORA_FIRE_EVENT)
     fun setYouboraFireEvent(videoView: ReactExoplayerView, event: ReadableMap?) {
         videoView.fireYouboraEvent(event)
+    }
+
+    @ReactProp(name = PROP_DRM_USER_TOKEN)
+    fun setPropDrmUserToken(videoView: ReactExoplayerView, drmUserToken: String?) {
+        videoView.setPropDrmUserToken(drmUserToken)
     }
 }

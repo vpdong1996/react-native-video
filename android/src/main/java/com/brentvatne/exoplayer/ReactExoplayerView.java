@@ -963,6 +963,7 @@ public class ReactExoplayerView extends FrameLayout implements
                 try {
                     DebugLog.w(TAG, "drm buildDrmSessionManager");
                     drmSessionManager = buildDrmSessionManager(uuid, drmProps);
+                    isDrm = true;
                 } catch (UnsupportedDrmException e) {
                     int errorStringId = Util.SDK_INT < 18 ? R.string.error_drm_not_supported
                             : (e.reason == UnsupportedDrmException.REASON_UNSUPPORTED_SCHEME
@@ -2637,6 +2638,7 @@ public class ReactExoplayerView extends FrameLayout implements
 //        playerCallback = callback;
 //        eventEmitter.playerCallback = callback;
 //    }
+
     public long getCurrentPositionMs() {
         if (player != null) {
             return player.getCurrentPosition();
@@ -2711,10 +2713,7 @@ public class ReactExoplayerView extends FrameLayout implements
         }
     }
 
-//
-//    public void setAdsSrc(String src) {
-//        this.srcUri = Uri.parse(src);
-//        reloadSource();
-//    }
-//
+    public void setPropDrmUserToken(String drmUserToken) {
+        this.drmUserToken = drmUserToken;
+    }
 }
